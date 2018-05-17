@@ -22,7 +22,7 @@ type databoxLoader struct {
 	path     string
 }
 
-func New() databoxLoader {
+func New(version string) databoxLoader {
 	cli, _ := client.NewEnvClient()
 
 	path, _ := filepath.Abs("./")
@@ -30,8 +30,8 @@ func New() databoxLoader {
 	return databoxLoader{
 		cli:      cli,
 		debug:    true,
-		registry: "",       //TODO fix this
-		version:  "latest", //TODO fix this
+		registry: "", //TODO fix this
+		version:  version,
 		path:     path,
 	}
 }
@@ -105,13 +105,13 @@ func (d *databoxLoader) createContainerManager() {
 	service := swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:  d.registry + "go-container-manager:" + d.version,
+				Image:  d.registry + "go-container-manager:latest", // + d.version, //TODO this is hardcoded to latest for now !!
 				Labels: map[string]string{"databox.type": "container-manager"},
 				Env: []string{
 					"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080",
 					"DATABOX_DEV=0", //TODO fix me
 					"DATABOX_SDK=0",
-					"DATABOX_VERSION=0.3.2", // + d.version, //TODO fix this the cm needs updating to work with the latest version
+					"DATABOX_VERSION=" + d.version,
 					"DATABOX_HOST_PATH=" + d.path,
 				},
 				Mounts: []mount.Mount{

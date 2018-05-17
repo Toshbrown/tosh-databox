@@ -31,6 +31,7 @@ type ContainerManager struct {
 	ZMQ_PUBLIC_KEY_ID  string
 	ZMQ_PRIVATE_KEY_ID string
 	ARCH               string
+	Version            string
 }
 
 func NewContainerManager(rootCASecretId string, zmqPublicId string, zmqPrivateId string) ContainerManager {
@@ -49,6 +50,7 @@ func NewContainerManager(rootCASecretId string, zmqPublicId string, zmqPrivateId
 		DATABOX_ROOT_CA_ID: rootCASecretId,
 		ZMQ_PUBLIC_KEY_ID:  zmqPublicId,
 		ZMQ_PRIVATE_KEY_ID: zmqPrivateId,
+		Version:            os.Getenv("DATABOX_VERSION"),
 	}
 
 	if os.Getenv("GOARCH") == "arm" {
@@ -79,7 +81,6 @@ func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
 func (cm ContainerManager) launchDriver(sla databoxTypes.SLA) {
 
 	registry := "databoxsystems/" //TODO this needs to be set from the SLA?
-	version := "0.3.2"            //TODO for now use the 0.3.2 images
 
 	localContainerName := sla.Name + cm.ARCH
 
@@ -89,7 +90,7 @@ func (cm ContainerManager) launchDriver(sla databoxTypes.SLA) {
 	service := swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:  registry + sla.Name + ":" + version,
+				Image:  registry + sla.Name + ":" + cm.Version,
 				Labels: map[string]string{"databox.type": "driver"},
 
 				Env: []string{
@@ -131,7 +132,6 @@ func (cm ContainerManager) launchDriver(sla databoxTypes.SLA) {
 func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 
 	registry := "databoxsystems/" //TODO this needs to be set from the SLA?
-	version := "0.3.2"            //TODO for now use the 0.3.2 images
 
 	localContainerName := sla.Name + cm.ARCH
 
@@ -141,7 +141,7 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 	service := swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:  registry + sla.Name + ":" + version,
+				Image:  registry + sla.Name + ":" + cm.Version,
 				Labels: map[string]string{"databox.type": "app"},
 
 				Env: []string{
@@ -197,8 +197,7 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 
 func (cm ContainerManager) launchStore(sla databoxTypes.SLA, netConf coreNetworkClient.NetworkConfig) string {
 
-	registry := ""      //TODO this needs to be set from the SLA?
-	version := "latest" //TODO for now use the latest images
+	registry := "databoxsystems/" //TODO this needs to be set from the SLA?
 
 	requiredStore := sla.ResourceRequirements.Store
 
@@ -209,7 +208,7 @@ func (cm ContainerManager) launchStore(sla databoxTypes.SLA, netConf coreNetwork
 	service := swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:  registry + requiredStore + ":" + version,
+				Image:  registry + requiredStore + ":" + cm.Version,
 				Labels: map[string]string{"databox.type": "store"},
 				Env: []string{
 					"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080",

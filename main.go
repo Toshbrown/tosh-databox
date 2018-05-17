@@ -17,6 +17,7 @@ func main() {
 
 	startCmd := flag.NewFlagSet("start", flag.ExitOnError)
 	startCmdIP := startCmd.String("ip", "192.168.1.131", "The external IP to use")
+	startCmdRelease := startCmd.String("rel", "0.3.2", "Databox version to start, can uses tagged versions or latest")
 
 	stopCmd := flag.NewFlagSet("stop", flag.ExitOnError)
 	logsCmd := flag.NewFlagSet("logs", flag.ExitOnError)
@@ -33,16 +34,16 @@ func main() {
 		os.Mkdir("./slaStore", 0770)
 	}
 
-	databox := databoxLoader.New()
-
 	if len(os.Args) == 1 {
 		displayUsage()
 		os.Exit(2)
 	}
 
+	startCmd.Parse(os.Args[2:])
+	databox := databoxLoader.New(*startCmdRelease)
+
 	switch os.Args[1] {
 	case "start":
-		startCmd.Parse(os.Args[2:])
 		databox.Start(*startCmdIP)
 	case "stop":
 		stopCmd.Parse(os.Args[2:])
