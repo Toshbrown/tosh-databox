@@ -20,6 +20,13 @@ func main() {
 
 	os.Setenv("DOCKER_API_VERSION", *DOCKER_API_VERSION)
 
+	if _, err := os.Stat("./certs"); err != nil {
+		os.Mkdir("./certs", 0700)
+	}
+	if _, err := os.Stat("./slastore"); err != nil {
+		os.Mkdir("./slastore", 0700)
+	}
+
 	databox := databoxClient.NewDataboxClient()
 
 	switch strings.ToUpper(*CMD) {
