@@ -6,11 +6,11 @@ up-to-date as of 0.3.2 - any new features/bug fixes will need to be ported
 
 ## TODO
 
-UI proxy is missing
-Some API endpoints are missing
-Some hard coded vars registries etc
+- UI proxy is missing
+- Some API endpoints are missing
+- Some hard coded vars registries etc
 
-Odd design choice to have the CM configure then restart its self (the config would done outside then CM)
+- Odd design choice to have the CM configure then restart its self (the config would be better done outside then CM)
 
 # Getting it working
 
