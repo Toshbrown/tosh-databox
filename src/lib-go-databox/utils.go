@@ -25,7 +25,7 @@ import (
 	"sync"
 	"time"
 
-	types "github.com/toshbrown/go-container-manager/lib-go-databox/types"
+	types "lib-go-databox/types"
 )
 
 var hostname string
@@ -218,7 +218,7 @@ func dataSourceMetadataToHypercat(metadata types.DataSourceMetadata, endPoint st
 		return nil, errors.New("Missing required metadata")
 	}
 
-	cat := types.Hypercat{}
+	cat := types.HypercatItem{}
 	cat.ItemMetadata = append(cat.ItemMetadata, types.RelValPair{Rel: "urn:X-hypercat:rels:hasDescription:en", Val: metadata.Description})
 	cat.ItemMetadata = append(cat.ItemMetadata, types.RelValPair{Rel: "urn:X-hypercat:rels:isContentType", Val: metadata.ContentType})
 	cat.ItemMetadata = append(cat.ItemMetadata, types.RelValPair{Rel: "urn:X-databox:rels:hasVendor", Val: metadata.Vendor})
@@ -249,7 +249,7 @@ func dataSourceMetadataToHypercat(metadata types.DataSourceMetadata, endPoint st
 func HypercatToDataSourceMetadata(hypercatDataSourceDescription string) (types.DataSourceMetadata, string, error) {
 	dm := types.DataSourceMetadata{}
 
-	hc := types.Hypercat{}
+	hc := types.HypercatItem{}
 	err := json.Unmarshal([]byte(hypercatDataSourceDescription), &hc)
 	if err != nil {
 		return dm, "", err

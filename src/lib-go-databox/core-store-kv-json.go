@@ -5,7 +5,8 @@ import (
 	"io/ioutil"
 	"strings"
 
-	types "github.com/toshbrown/go-container-manager/lib-go-databox/types"
+	types "lib-go-databox/types"
+
 	zest "github.com/toshbrown/goZestClient"
 )
 

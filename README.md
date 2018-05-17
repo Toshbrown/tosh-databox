@@ -17,6 +17,10 @@ up-to-date as of 0.3.2 - any new features/bug fixes will need to be ported
 
 # Getting it working
 
+go get github.com/toshbrown/tosh-databox
+
+cd cd ~/go/src/github.com/toshbrown/tosh-databox
+
 Make sure all other version of databox are stopped!
 
 ./databox-test
