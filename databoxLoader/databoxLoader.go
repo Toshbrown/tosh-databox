@@ -1,4 +1,4 @@
-package databoxClient
+package databoxLoader
 
 import (
 	"context"
@@ -10,25 +10,25 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+
+	derr "databoxerrors"
 )
 
-type databoxClient struct {
+type databoxLoader struct {
 	cli      *client.Client
-	cliErr   []error
 	debug    bool
 	registry string
 	version  string
 	path     string
 }
 
-func NewDataboxClient() databoxClient {
+func New() databoxLoader {
 	cli, _ := client.NewEnvClient()
 
 	path, _ := filepath.Abs("./")
 
-	return databoxClient{
+	return databoxLoader{
 		cli:      cli,
-		cliErr:   nil,
 		debug:    true,
 		registry: "",       //TODO fix this
 		version:  "latest", //TODO fix this
@@ -36,41 +36,31 @@ func NewDataboxClient() databoxClient {
 	}
 }
 
-func (d *databoxClient) setErr(err error) {
-	if err == nil {
-		return
-	}
-	if d.debug == true {
-		fmt.Println("[Databox Error] ", err)
-	}
-	d.cliErr = append(d.cliErr, err)
-}
-
-func (d *databoxClient) Start(ip string) {
+func (d *databoxLoader) Start(ip string) {
 
 	_, err := d.cli.SwarmInit(context.Background(), swarm.InitRequest{
 		ListenAddr:    "127.0.0.1",
 		AdvertiseAddr: ip,
 	})
-	d.setErr(err)
+	derr.ChkErr(err)
 
 	d.createContainerManager()
 
 }
 
-func (d *databoxClient) Stop() {
+func (d *databoxLoader) Stop() {
 
 	filters := filters.NewArgs()
 	filters.Add("label", "databox.type")
 
 	containers, err := d.cli.ContainerList(context.Background(), types.ContainerListOptions{Filters: filters})
-	d.setErr(err)
+	derr.ChkErr(err)
 
 	if len(containers) > 0 {
 		for _, container := range containers {
 			fmt.Println("Removing old databox container")
 			err := d.cli.ContainerStop(context.Background(), container.ID, nil)
-			d.setErr(err)
+			derr.ChkErr(err)
 		}
 	}
 
@@ -81,20 +71,20 @@ func (d *databoxClient) Stop() {
 	}
 
 	services, err := d.cli.ServiceList(context.Background(), types.ServiceListOptions{Filters: filters})
-	d.setErr(err)
+	derr.ChkErr(err)
 
 	if len(services) > 0 {
 		for _, service := range services {
 			fmt.Println("Removing old databox service")
 			err := d.cli.ServiceRemove(context.Background(), service.ID)
-			d.setErr(err)
+			derr.ChkErr(err)
 		}
 	}
 
 	d.cli.SwarmLeave(context.Background(), true)
 }
 
-func (d *databoxClient) createContainerManager() {
+func (d *databoxLoader) createContainerManager() {
 
 	portConfig := []swarm.PortConfig{
 		swarm.PortConfig{
@@ -115,7 +105,8 @@ func (d *databoxClient) createContainerManager() {
 	service := swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image: d.registry + "go-container-manager:" + d.version,
+				Image:  d.registry + "go-container-manager:" + d.version,
+				Labels: map[string]string{"databox.type": "container-manager"},
 				Env: []string{
 					"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080",
 					"DATABOX_DEV=0", //TODO fix me
@@ -159,11 +150,11 @@ func (d *databoxClient) createContainerManager() {
 	//d.pullImage(service.TaskTemplate.ContainerSpec.Image)
 
 	_, err := d.cli.ServiceCreate(context.Background(), service, serviceOptions)
-	d.setErr(err)
+	derr.ChkErr(err)
 
 }
 
-func (d *databoxClient) pullImage(image string) {
+func (d *databoxLoader) pullImage(image string) {
 
 	filters := filters.NewArgs()
 	filters.Add("reference", image)
@@ -172,21 +163,21 @@ func (d *databoxClient) pullImage(image string) {
 
 	if len(images) == 0 {
 		_, err := d.cli.ImagePull(context.Background(), image, types.ImagePullOptions{})
-		d.setErr(err)
+		derr.ChkErr(err)
 	}
 }
 
-func (d *databoxClient) removeContainer(name string) {
+func (d *databoxLoader) removeContainer(name string) {
 	filters := filters.NewArgs()
 	filters.Add("name", name)
 	containers, clerr := d.cli.ContainerList(context.Background(), types.ContainerListOptions{
 		Filters: filters,
 		All:     true,
 	})
-	d.setErr(clerr)
+	derr.ChkErr(clerr)
 
 	if len(containers) > 0 {
 		rerr := d.cli.ContainerRemove(context.Background(), containers[0].ID, types.ContainerRemoveOptions{Force: true})
-		d.setErr(rerr)
+		derr.ChkErr(rerr)
 	}
 }

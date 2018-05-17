@@ -2,10 +2,11 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
-	"strings"
 
-	databoxClient "github.com/toshbrown/tosh-databox/databoxClient"
+	"github.com/toshbrown/tosh-databox/databoxLoader"
+	"github.com/toshbrown/tosh-databox/databoxLogParser"
 )
 
 func main() {
@@ -13,8 +14,13 @@ func main() {
 	//TODO parse CMD input for stop and dev mode etc
 
 	DOCKER_API_VERSION := flag.String("API", "1.35", "Docker API version ")
-	CMD := flag.String("cmd", "START", "start,stop")
-	IP := flag.String("ip", "192.168.1.131", "The external IP to use")
+
+	startCmd := flag.NewFlagSet("start", flag.ExitOnError)
+	startCmdIP := startCmd.String("ip", "192.168.1.131", "The external IP to use")
+
+	stopCmd := flag.NewFlagSet("stop", flag.ExitOnError)
+	logsCmd := flag.NewFlagSet("logs", flag.ExitOnError)
+
 	//DEV              := flag.Bool("dev", false, "Use this to enable dev mode")
 	flag.Parse()
 
@@ -27,14 +33,36 @@ func main() {
 		os.Mkdir("./slaStore", 0770)
 	}
 
-	databox := databoxClient.NewDataboxClient()
+	databox := databoxLoader.New()
 
-	switch strings.ToUpper(*CMD) {
-	case "STOP":
-		databox.Stop()
-	case "START":
-		databox.Stop()
-		databox.Start(*IP)
+	if len(os.Args) == 1 {
+		displayUsage()
+		os.Exit(2)
 	}
 
+	switch os.Args[1] {
+	case "start":
+		startCmd.Parse(os.Args[2:])
+		databox.Start(*startCmdIP)
+	case "stop":
+		stopCmd.Parse(os.Args[2:])
+		databox.Stop()
+	case "logs":
+		logsCmd.Parse(os.Args[2:])
+		databoxLogParser.ShowLogs()
+	default:
+		displayUsage()
+		os.Exit(2)
+	}
+
+}
+
+func displayUsage() {
+	fmt.Println(`
+		databox [cmd]
+		Usage:
+			start - start databox
+			stop - stop databox
+			logs - view databox logs
+		`)
 }

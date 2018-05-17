@@ -42,8 +42,7 @@ function test_assert {
 docker build -t go-container-manager .
 
 #Start databox
-go run main.go
-
+go run main.go start
 
 echo "Getting some images"
 docker pull databoxsystems/core-store:0.3.2

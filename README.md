@@ -27,4 +27,4 @@ Make sure all other version of databox are stopped!
 
 # Stopping it
 
-go run main.go --cmd stop
+go run main.go stop
