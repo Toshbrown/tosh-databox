@@ -44,6 +44,12 @@ docker build -t go-container-manager .
 #Start databox
 go run main.go
 
+
+echo "Getting some images"
+docker pull databoxsystems/core-store:0.3.2
+docker pull databoxsystems/app-os-monitor:0.3.2
+docker pull databoxsystems/driver-os-monitor:0.3.2
+
 echo "Sleeping...."
 sleep 20
 docker ps
