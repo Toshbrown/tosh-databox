@@ -23,8 +23,8 @@ func main() {
 	if _, err := os.Stat("./certs"); err != nil {
 		os.Mkdir("./certs", 0770)
 	}
-	if _, err := os.Stat("./slastore"); err != nil {
-		os.Mkdir("./slastore", 0770)
+	if _, err := os.Stat("./slaStore"); err != nil {
+		os.Mkdir("./slaStore", 0770)
 	}
 
 	databox := databoxClient.NewDataboxClient()
