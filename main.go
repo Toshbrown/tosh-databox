@@ -21,10 +21,10 @@ func main() {
 	os.Setenv("DOCKER_API_VERSION", *DOCKER_API_VERSION)
 
 	if _, err := os.Stat("./certs"); err != nil {
-		os.Mkdir("./certs", 0700)
+		os.Mkdir("./certs", 0770)
 	}
 	if _, err := os.Stat("./slastore"); err != nil {
-		os.Mkdir("./slastore", 0700)
+		os.Mkdir("./slastore", 0770)
 	}
 
 	databox := databoxClient.NewDataboxClient()
