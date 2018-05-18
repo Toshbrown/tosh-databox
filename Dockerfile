@@ -13,7 +13,7 @@ RUN go get -u github.com/pkg/errors
 RUN rm -rf /src/github.com/docker/docker/vendor/github.com/docker/go-connections
 COPY . /
 RUN addgroup -S databox && adduser -S -g databox databox
-RUN GGO_ENABLED=0 GOOS=linux go build -a -tags netgo -installsuffix netgo -ldflags '-s -w' -o app ./go-container-manager/app.go
+RUN GGO_ENABLED=0 GOOS=linux go build -a -tags netgo -installsuffix netgo -ldflags '-s -w' -o app ./src/go-container-manager/app.go
 
 
 FROM alpine
@@ -24,7 +24,7 @@ USER root
 #TODO security
 WORKDIR /
 COPY --from=gobuild /app .
-COPY --from=gobuild /go-container-manager/www /www
+COPY --from=gobuild /src/go-container-manager/www /www
 LABEL databox.type="container-manager"
 EXPOSE 80 443
 RUN rm -rf /certs/*

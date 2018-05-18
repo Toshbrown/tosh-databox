@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/toshbrown/tosh-databox/databoxLoader"
-	"github.com/toshbrown/tosh-databox/databoxLogParser"
+	"databoxLoader"
+	"databoxLogParser"
 )
 
 func main() {

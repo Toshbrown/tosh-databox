@@ -23,8 +23,8 @@ cd cd ~/go/src/github.com/toshbrown/tosh-databox
 
 Make sure all other version of databox are stopped!
 
-./databox-test
+make build && make start
 
 # Stopping it
 
-go run main.go stop
+make stop

@@ -38,8 +38,6 @@ function test_assert {
   fi
 }
 
-#update the CM
-docker build -t go-container-manager .
 
 #Start databox
 go run main.go start

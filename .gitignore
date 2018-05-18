@@ -13,3 +13,5 @@
 
 certs/
 pkg/
+
+bin/
