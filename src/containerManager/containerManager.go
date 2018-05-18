@@ -88,6 +88,9 @@ func (cm ContainerManager) launchDriver(sla databoxTypes.SLA) {
 	netConf := cm.CoreNetworkClient.PreConfig(localContainerName, sla)
 
 	service := swarm.ServiceSpec{
+		Annotations: swarm.Annotations{
+			Labels: map[string]string{"databox.type": "driver"},
+		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
 				Image:  registry + sla.Name + ":" + cm.Version,
@@ -139,6 +142,9 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 	netConf := cm.CoreNetworkClient.PreConfig(localContainerName, sla)
 
 	service := swarm.ServiceSpec{
+		Annotations: swarm.Annotations{
+			Labels: map[string]string{"databox.type": "app"},
+		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
 				Image:  registry + sla.Name + ":" + cm.Version,
@@ -206,6 +212,9 @@ func (cm ContainerManager) launchStore(sla databoxTypes.SLA, netConf coreNetwork
 	requiredStoreName := sla.Name + "-" + requiredStore + cm.ARCH
 
 	service := swarm.ServiceSpec{
+		Annotations: swarm.Annotations{
+			Labels: map[string]string{"databox.type": "store"},
+		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
 				Image:  registry + requiredStore + ":" + cm.Version,
@@ -409,9 +418,12 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 	if sla.ResourceRequirements.Store != "" {
 		requiredStoreName := sla.Name + "-" + sla.ResourceRequirements.Store + cm.ARCH
 
-		//TODO CM NEEDS READ OF /CAT
+		fmt.Println("[Adding read permissions] for container-manager on " + requiredStoreName + "/cat")
+		err = cm.addPermission("container-manager", requiredStoreName, "/cat", "GET", []string{})
+		if err != nil {
+			fmt.Println("[Error adding write permissions] for Actuator ", err.Error())
+		}
 
-		//TODO check the we dont need entries for /cat /status etc.
 		fmt.Println("[Adding write permissions] for dependent store " + localContainerName + " on " + requiredStoreName + "/*")
 		err = cm.addPermission(localContainerName, requiredStoreName, "/*", "POST", []string{})
 		if err != nil {

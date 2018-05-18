@@ -9,6 +9,7 @@ import (
 	"net/http"
 
 	//databox "github.com/me-box/lib-go-databox"
+	"databoxProxy"
 	"lib-go-databox/coreStoreClient"
 	databoxTypes "lib-go-databox/types"
 
@@ -38,7 +39,7 @@ func ServeSecure(cm ContainerManager) {
 		for _, item := range hyperCatRoot.Items {
 			//get the cat
 			storeURL, _ := coreStoreClient.GetStoreURLFromDsHref(item.Href)
-			sc := coreStoreClient.NewCoreStoreClient(request, ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, true)
+			sc := coreStoreClient.NewCoreStoreClient(request, ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
 			storeCat, err := sc.GetStoreDataSourceCatalogue(item.Href)
 			if err != nil {
 				fmt.Println("[/api/datasource/list] Error GetStoreDataSourceCatalogue ", err.Error())
@@ -170,6 +171,9 @@ func ServeSecure(cm ContainerManager) {
 	r.HandleFunc("/api/uninstall", func(w http.ResponseWriter, r *http.Request) {
 
 	}).Methods("POST")
+
+	dboxproxy := databoxProxy.New()
+	r.HandleFunc("/ui/{appurl:.*}", dboxproxy.Proxy).Methods("GET", "POST")
 
 	static := http.FileServer(http.Dir("./www/https"))
 
