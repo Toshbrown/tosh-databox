@@ -172,7 +172,7 @@ func ServeSecure(cm ContainerManager) {
 
 	}).Methods("POST")
 
-	dboxproxy := databoxProxy.New()
+	dboxproxy := databoxProxy.New("/certs/containerManager.crt")
 	r.HandleFunc("/ui/{appurl:.*}", dboxproxy.Proxy).Methods("GET", "POST")
 
 	static := http.FileServer(http.Dir("./www/https"))

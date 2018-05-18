@@ -15,9 +15,9 @@ type databoxProxy struct {
 	httpClient *http.Client
 }
 
-func New() *databoxProxy {
+func New(rootCertPath string) *databoxProxy {
 
-	h := databoxRequest.NewDataboxHTTPsAPI()
+	h := databoxRequest.NewDataboxHTTPsAPIWithPaths(rootCertPath)
 
 	return &databoxProxy{
 		httpClient: h,

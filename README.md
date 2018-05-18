@@ -6,7 +6,7 @@ up-to-date as of 0.3.2 - any new features/bug fixes will need to be ported
 
 ## TODO
 
-- UI proxy is missing (added but needs work)
+- UI proxy is missing (added but working but the path needs fixing)
 - Some API endpoints are missing
 - Some hard coded vars registries etc
 - CM auth needs porting over
