@@ -175,7 +175,7 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 		hypercatString, _ := json.Marshal(ds.Hypercat)
 		service.TaskTemplate.ContainerSpec.Env = append(
 			service.TaskTemplate.ContainerSpec.Env,
-			string(hypercatString),
+			"DATASOURCE_"+ds.Clientid+"="+string(hypercatString),
 		)
 	}
 
@@ -274,7 +274,7 @@ func (cm ContainerManager) addSecrets(containerName string, databoxType databoxT
 				Name: filename,
 				UID:  "0",
 				GID:  "0",
-				Mode: 929,
+				Mode: 0444,
 			},
 		}
 	}
@@ -288,7 +288,7 @@ func (cm ContainerManager) addSecrets(containerName string, databoxType databoxT
 			Name: "DATABOX_ROOT_CA",
 			UID:  "0",
 			GID:  "0",
-			Mode: 929,
+			Mode: 0444,
 		},
 	})
 
@@ -299,7 +299,7 @@ func (cm ContainerManager) addSecrets(containerName string, databoxType databoxT
 			Name: "ZMQ_PUBLIC_KEY",
 			UID:  "0",
 			GID:  "0",
-			Mode: 929,
+			Mode: 0444,
 		},
 	})
 
@@ -331,7 +331,7 @@ func (cm ContainerManager) addSecrets(containerName string, databoxType databoxT
 				Name: "ZMQ_SECRET_KEY",
 				UID:  "0",
 				GID:  "0",
-				Mode: 929,
+				Mode: 0444,
 			},
 		})
 	}
