@@ -88,15 +88,22 @@ func ServeSecure(cm ContainerManager) {
 
 		vars := mux.Vars(r)
 		serviceType := vars["type"]
+		fmt.Println("[/api/{type}/list] type ", serviceType)
 
-		serviceFilters := filters.NewArgs()
-		serviceFilters.Add("databox.type", serviceType)
-
-		services, _ := cli.ServiceList(context.Background(), types.ServiceListOptions{Filters: serviceFilters})
+		services, _ := cli.ServiceList(context.Background(), types.ServiceListOptions{})
 
 		res := []listResult{}
 		for _, service := range services {
 
+			val, exists := service.Spec.Labels["databox.type"]
+			if exists == false {
+				//its not a databox service
+				continue
+			}
+			if val != serviceType {
+				//this is not the service were looking for
+				continue
+			}
 			lr := listResult{
 				Name: service.Spec.Name,
 				Type: serviceType,
