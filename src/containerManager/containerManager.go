@@ -374,7 +374,6 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 
 			//Deal with Actuators
 			isActuator := false
-			fmt.Println(ds.Hypercat.ItemMetadata)
 			for _, item := range ds.Hypercat.ItemMetadata {
 				switch item.(type) {
 				case databoxTypes.RelValPairBool:
@@ -394,20 +393,21 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 				}
 			}
 
-			fmt.Println("[Adding read permissions] for /status " + datasourceName + " on " + datasourceEndpoint.Hostname())
+			fmt.Println("[Adding read permissions] for /status  on " + datasourceEndpoint.Hostname())
 			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), "/status", "GET", []string{})
 			if err != nil {
 				fmt.Println("[Error adding write permissions] for Datasource ", err.Error())
 			}
 
-			fmt.Println("[Adding read permissions] for data source " + datasourceName + " on " + datasourceEndpoint.Hostname())
+			fmt.Println("[Adding read permissions] for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname())
 			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), "/"+datasourceName, "GET", []string{})
 			if err != nil {
-				fmt.Println("[Error adding write permissions] for Actuator ", err.Error())
+				fmt.Println("[Error adding write permissions] for Datasource ", err.Error())
 			}
+			fmt.Println("[Adding read permissions] for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname() + "/*")
 			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), "/"+datasourceName+"/*", "GET", []string{})
 			if err != nil {
-				fmt.Println("[Error adding write permissions] for Actuator ", err.Error())
+				fmt.Println("[Error adding write permissions] for Datasource ", err.Error())
 			}
 
 		}
