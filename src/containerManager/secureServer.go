@@ -9,9 +9,11 @@ import (
 	"net/http"
 
 	//databox "github.com/me-box/lib-go-databox"
-	"databoxProxy"
+
 	"lib-go-databox/coreStoreClient"
 	databoxTypes "lib-go-databox/types"
+
+	"databoxProxyMiddleware"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -28,6 +30,8 @@ func ServeSecure(cm ContainerManager) {
 
 	//start the https server for the app UI
 	r := mux.NewRouter()
+	dboxproxy := databoxProxyMiddleware.New("/certs/containerManager.crt")
+	r.Use(dboxproxy.ProxyMiddleware)
 
 	r.HandleFunc("/api/datasource/list", func(w http.ResponseWriter, r *http.Request) {
 		hyperCatRoot, err := ac.GetRootDataSourceCatalogue()
@@ -155,6 +159,9 @@ func ServeSecure(cm ContainerManager) {
 
 		fmt.Println("[/api/install] installing " + sla.Name)
 
+		//add to proxy
+		dboxproxy.Add(sla.Name)
+
 		//TODO check and return an error!!!
 		cm.LaunchFromSLA(sla)
 
@@ -170,10 +177,9 @@ func ServeSecure(cm ContainerManager) {
 
 	r.HandleFunc("/api/uninstall", func(w http.ResponseWriter, r *http.Request) {
 
-	}).Methods("POST")
+		dboxproxy.Del("component name here!!!")
 
-	dboxproxy := databoxProxy.New("/certs/containerManager.crt")
-	r.HandleFunc("/ui/{appurl:.*}", dboxproxy.Proxy).Methods("GET", "POST")
+	}).Methods("POST")
 
 	static := http.FileServer(http.Dir("./www/https"))
 

@@ -6,7 +6,7 @@ up-to-date as of 0.3.2 - any new features/bug fixes will need to be ported
 
 ## TODO
 
-- UI proxy is missing (added but working but the path needs fixing)
+- ~~ UI proxy is missing (added but working but the path needs fixing) ~~
 - Some API endpoints are missing
 - Some hard coded vars registries etc
 - CM auth needs porting over
@@ -20,11 +20,11 @@ up-to-date as of 0.3.2 - any new features/bug fixes will need to be ported
 
 go get github.com/toshbrown/tosh-databox
 
-cd cd ~/go/src/github.com/toshbrown/tosh-databox
+cd ~/go/src/github.com/toshbrown/tosh-databox
 
 Make sure all other version of databox are stopped!
 
-make build && make start
+make build && make build-cm && make start
 
 # Stopping it
 
