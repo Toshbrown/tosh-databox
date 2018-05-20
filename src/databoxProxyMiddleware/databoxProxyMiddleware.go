@@ -6,9 +6,11 @@ import (
 	"lib-go-databox/databoxRequest"
 	"net/http"
 	"strings"
+	"sync"
 )
 
 type databoxProxyMiddleware struct {
+	sync.Mutex
 	proxyList  map[string]string
 	httpClient *http.Client
 	next       http.Handler
@@ -29,15 +31,18 @@ func (d *databoxProxyMiddleware) ProxyMiddleware(next http.Handler) http.Handler
 	return http.HandlerFunc(d.Proxy)
 }
 
-func (d databoxProxyMiddleware) Proxy(w http.ResponseWriter, r *http.Request) {
+func (d *databoxProxyMiddleware) Proxy(w http.ResponseWriter, r *http.Request) {
 
 	parts := strings.Split(r.URL.Path, "/")
 
+	d.Lock()
 	if _, ok := d.proxyList[parts[1]]; ok == false {
 		//no need to proxy
 		d.next.ServeHTTP(w, r)
+		d.Unlock()
 		return
 	}
+	d.Unlock()
 
 	RequestURI := "https://" + parts[1] + ":8080/" + strings.Join(parts[2:], "/")
 
@@ -65,11 +70,15 @@ func (d databoxProxyMiddleware) Proxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *databoxProxyMiddleware) Add(containerName string) {
+	d.Lock()
+	defer d.Unlock()
 	log.Info("[databoxProxyMiddleware.Add]" + containerName)
 	d.proxyList[containerName] = containerName
 }
 
 func (d *databoxProxyMiddleware) Del(containerName string) {
+	d.Lock()
+	defer d.Unlock()
 	_, ok := d.proxyList[containerName]
 	if ok {
 		delete(d.proxyList, containerName)
