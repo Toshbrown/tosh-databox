@@ -33,6 +33,9 @@ func ServeSecure(cm ContainerManager) {
 	dboxproxy := databoxProxyMiddleware.New("/certs/containerManager.crt")
 	r.Use(dboxproxy.ProxyMiddleware)
 
+	//proxy to the arbiter ui
+	dboxproxy.Add("arbiter")
+
 	r.HandleFunc("/api/datasource/list", func(w http.ResponseWriter, r *http.Request) {
 		hyperCatRoot, err := ac.GetRootDataSourceCatalogue()
 		if err != nil {
