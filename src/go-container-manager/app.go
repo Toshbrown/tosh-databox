@@ -7,6 +7,7 @@ import (
 
 	certificateGenerator "certificateGenerator"
 	containerManager "containerManager"
+	log "databoxerrors"
 )
 
 func main() {
@@ -80,10 +81,10 @@ func generateDataboxCertificates(IP string) {
 	for _, name := range components {
 		fmt.Println(name)
 		if _, err := os.Stat(certsBasePath + "/" + name + ".pem"); err == nil {
-			fmt.Println("Cert exists, delete the  " + certsBasePath + "/" + name + ".pem to regenerate")
+			//fmt.Println("Cert exists, delete the  " + certsBasePath + "/" + name + ".pem to regenerate")
 			continue
 		}
-		fmt.Println("Making cert ", certsBasePath+"/"+name+".pem")
+		log.Info("Making cert " + certsBasePath + "/" + name + ".pem")
 		certificateGenerator.GenCertToFile(
 			rootCAPath,
 			name,

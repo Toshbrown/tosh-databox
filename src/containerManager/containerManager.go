@@ -4,7 +4,6 @@ import (
 	"context"
 	b64 "encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,6 +19,8 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+
+	log "databoxerrors"
 )
 
 type ContainerManager struct {
@@ -124,7 +125,7 @@ func (cm ContainerManager) launchDriver(sla databoxTypes.SLA) {
 
 	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
 	if err != nil {
-		fmt.Println("[launchDriver] Error launching "+localContainerName, err.Error())
+		log.Err("[launchDriver] Error launching " + localContainerName + " " + err.Error())
 	}
 
 	cm.CoreNetworkClient.ConnectEndpoints(localContainerName, []string{storeName})
@@ -194,7 +195,7 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 
 	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
 	if err != nil {
-		fmt.Println("[launchApp] Error launching "+localContainerName, err.Error())
+		log.Err("[launchApp] Error launching " + localContainerName + " " + err.Error())
 	}
 
 	cm.addPermissionsFromSla(sla)
@@ -248,7 +249,7 @@ func (cm ContainerManager) launchStore(sla databoxTypes.SLA, netConf coreNetwork
 
 	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
 	if err != nil {
-		fmt.Println("[launchStore] Error Store launching "+requiredStoreName, err.Error())
+		log.Err("[launchStore] Error Store launching " + requiredStoreName + " " + err.Error())
 	}
 
 	return storeName
@@ -265,7 +266,7 @@ func (cm ContainerManager) addSecrets(containerName string, databoxType databoxT
 		}
 		secretCreateResponse, err := cm.cli.SecretCreate(context.Background(), secret)
 		if err != nil {
-			fmt.Println("[addSecrets] createSecret error", err.Error())
+			log.Err("[addSecrets] createSecret error " + err.Error())
 		}
 		return &swarm.SecretReference{
 			SecretID:   secretCreateResponse.ID,
@@ -318,12 +319,12 @@ func (cm ContainerManager) addSecrets(containerName string, databoxType databoxT
 	//update the arbiter with the containers token
 	err := cm.ArbiterClient.UpdateArbiter(containerName, b64TokenString, databoxType)
 	if err != nil {
-		fmt.Println("[addSecrets] Error updating arbiter ", err.Error())
+		log.Err("[addSecrets] Error updating arbiter " + err.Error())
 	}
 
 	//Only pass the zmq private key to stores.
 	if databoxType == "store" {
-		fmt.Println("[addSecrets] ZMQ_PRIVATE_KEY_ID=", cm.ZMQ_PRIVATE_KEY_ID)
+		log.Info("[addSecrets] ZMQ_PRIVATE_KEY_ID=" + cm.ZMQ_PRIVATE_KEY_ID)
 		secrets = append(secrets, &swarm.SecretReference{
 			SecretID:   cm.ZMQ_PRIVATE_KEY_ID,
 			SecretName: "ZMQ_SECRET_KEY",
@@ -357,11 +358,11 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 		}
 		urlsString = urlsString + "\""
 
-		fmt.Println("[Adding Export permissions for " + localContainerName + "] on " + urlsString)
+		log.Info("Adding Export permissions for " + localContainerName + " on " + urlsString)
 
 		err = cm.addPermission(localContainerName, "export-service", "/export/", "POST", []string{urlsString})
 		if err != nil {
-			fmt.Println("[Error adding write permissions] for Actuator ", err.Error())
+			log.Err("Adding write permissions for Actuator " + err.Error())
 		}
 	}
 
@@ -386,28 +387,29 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 				}
 			}
 			if isActuator == true {
-				fmt.Println("[Adding write permissions] for Actuator " + datasourceName + " on " + datasourceEndpoint.Hostname())
+				log.Info("Adding write permissions for Actuator " + datasourceName + " on " + datasourceEndpoint.Hostname())
 				err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), "/"+datasourceName+"/*", "POST", []string{})
 				if err != nil {
-					fmt.Println("[Error adding write permissions] for Actuator ", err.Error())
+					log.Err("Adding write permissions for Actuator " + err.Error())
 				}
 			}
 
-			fmt.Println("[Adding read permissions] for /status  on " + datasourceEndpoint.Hostname())
+			log.Info("Adding read permissions for /status  on " + datasourceEndpoint.Hostname())
 			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), "/status", "GET", []string{})
 			if err != nil {
-				fmt.Println("[Error adding write permissions] for Datasource ", err.Error())
+				log.Err("Adding write permissions for Datasource " + err.Error())
 			}
 
-			fmt.Println("[Adding read permissions] for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname())
+			log.Info("Adding read permissions for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname())
 			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), "/"+datasourceName, "GET", []string{})
 			if err != nil {
-				fmt.Println("[Error adding write permissions] for Datasource ", err.Error())
+				log.Err("Adding write permissions for Datasource " + err.Error())
 			}
-			fmt.Println("[Adding read permissions] for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname() + "/*")
+
+			log.Info("Adding read permissions for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname() + "/*")
 			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), "/"+datasourceName+"/*", "GET", []string{})
 			if err != nil {
-				fmt.Println("[Error adding write permissions] for Datasource ", err.Error())
+				log.Err("Adding write permissions for Datasource " + err.Error())
 			}
 
 		}
@@ -418,22 +420,21 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 	if sla.ResourceRequirements.Store != "" {
 		requiredStoreName := sla.Name + "-" + sla.ResourceRequirements.Store + cm.ARCH
 
-		fmt.Println("[Adding read permissions] for container-manager on " + requiredStoreName + "/cat")
+		log.Info("Adding read permissions for container-manager on " + requiredStoreName + "/cat")
 		err = cm.addPermission("container-manager", requiredStoreName, "/cat", "GET", []string{})
 		if err != nil {
-			fmt.Println("[Error adding write permissions] for Actuator ", err.Error())
+			log.Err("Adding write permissions for Actuator " + err.Error())
 		}
 
-		fmt.Println("[Adding write permissions] for dependent store " + localContainerName + " on " + requiredStoreName + "/*")
+		log.Info("Adding write permissions for dependent store " + localContainerName + " on " + requiredStoreName + "/*")
 		err = cm.addPermission(localContainerName, requiredStoreName, "/*", "POST", []string{})
 		if err != nil {
-			fmt.Println("[Error adding write permissions] for Actuator ", err.Error())
+			log.Err("Adding write permissions for Actuator " + err.Error())
 		}
 
-		fmt.Println("[Adding read permissions] for dependent store " + localContainerName + " on " + requiredStoreName + "/*")
 		err = cm.addPermission(localContainerName, requiredStoreName, "/*", "GET", []string{})
 		if err != nil {
-			fmt.Println("[Error adding write permissions] for Actuator ", err.Error())
+			log.Err("Adding write permissions for Actuator " + err.Error())
 		}
 
 	}

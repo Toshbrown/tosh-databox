@@ -8,20 +8,20 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 
-	derr "databoxerrors"
+	log "databoxerrors"
 )
 
 func ShowLogs() {
 
 	cli, _ := client.NewEnvClient()
 
-	fmt.Println("outputting logs")
+	log.Info("Outputting logs")
 
 	//filters := filters.NewArgs()
 	//filters.Add("label", "databox.type")
 	//services, err := d.cli.ServiceList(context.Background(), types.ServiceListOptions{Filters: filters})
 	services, err := cli.ServiceList(context.Background(), types.ServiceListOptions{})
-	derr.ChkErr(err)
+	log.ChkErr(err)
 
 	logChan := make(chan string)
 	var wg sync.WaitGroup

@@ -6,11 +6,11 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	log "databoxerrors"
 	b64 "encoding/base64"
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math/big"
 	"net"
 	"os"
@@ -22,35 +22,25 @@ func GenCert(CAFilePath string, commonName string, ips []string, hostNames []str
 	fmt.Println("[GenCert] ", commonName)
 
 	rootCertPem, err := ioutil.ReadFile(CAFilePath)
-	if err != nil {
-		log.Fatalf("failed to read root cert: %s", err)
-	}
+	log.ChkErrFatal(err)
 
 	rootCertBytes, rest := pem.Decode(rootCertPem)
 
 	rootCert, err := x509.ParseCertificate(rootCertBytes.Bytes)
-	if err != nil {
-		log.Fatalf("failed to parse root cert: %s", err)
-	}
+	log.ChkErrFatal(err)
 
 	rootPrivateKeyBytes, _ := pem.Decode(rest)
 	rootPrivateKey, err := x509.ParsePKCS1PrivateKey(rootPrivateKeyBytes.Bytes)
-	if err != nil {
-		log.Fatalf("failed to parse root cert: %s", err)
-	}
+	log.ChkErrFatal(err)
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		log.Fatalf("failed to generate private key: %s", err)
-	}
+	log.ChkErrFatal(err)
 
 	notBefore := time.Now()
 	notAfter := notBefore.Add(365 * 24 * time.Hour)
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, snErr := rand.Int(rand.Reader, serialNumberLimit)
-	if snErr != nil {
-		log.Fatalf("failed to generate serial number: %s", err)
-	}
+	log.ChkErrFatal(snErr)
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
@@ -78,9 +68,7 @@ func GenCert(CAFilePath string, commonName string, ips []string, hostNames []str
 	template.IsCA = false
 
 	derBytes, derErr := x509.CreateCertificate(rand.Reader, &template, rootCert, &priv.PublicKey, rootPrivateKey)
-	if derErr != nil {
-		log.Fatalf("Failed to create certificate: %s", derErr)
-	}
+	log.ChkErrFatal(derErr)
 
 	cert := new(bytes.Buffer)
 	pem.Encode(cert, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
@@ -89,9 +77,8 @@ func GenCert(CAFilePath string, commonName string, ips []string, hostNames []str
 	pem.Encode(cert, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: b})
 
 	asn1Bytes, pubErr := x509.MarshalPKIXPublicKey(&priv.PublicKey)
-	if pubErr != nil {
-		log.Fatalf("gen public key %s", pubErr)
-	}
+	log.ChkErrFatal(pubErr)
+
 	pem.Encode(cert, &pem.Block{Type: "PUBLIC KEY", Bytes: asn1Bytes})
 
 	return cert.Bytes()
@@ -102,13 +89,11 @@ func GenCertToFile(CAFilePath string, commonName string, ips []string, hostNames
 	cert := GenCert(CAFilePath, commonName, ips, hostNames)
 
 	certOut, err := os.Create(outputFilePath)
-	if err != nil {
-		log.Fatalf("failed to open "+outputFilePath+" for writing: %s", err)
-	}
+	log.ChkErrFatal(err)
+
 	_, err = certOut.Write(cert)
-	if err != nil {
-		log.Fatalf("Error writing to file  "+outputFilePath+" %s", err)
-	}
+	log.ChkErrFatal(err)
+
 	certOut.Close()
 
 }
@@ -116,17 +101,13 @@ func GenCertToFile(CAFilePath string, commonName string, ips []string, hostNames
 func GenRootCA(CAFilePath string) {
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	log.ChkErrFatal(err)
 
-	if err != nil {
-		log.Fatalf("failed to generate private key: %s", err)
-	}
 	notBefore := time.Now()
 	notAfter := notBefore.Add(365 * 24 * time.Hour)
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, snErr := rand.Int(rand.Reader, serialNumberLimit)
-	if snErr != nil {
-		log.Fatalf("failed to generate serial number: %s", err)
-	}
+	log.ChkErrFatal(snErr)
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
@@ -147,14 +128,10 @@ func GenRootCA(CAFilePath string) {
 	template.KeyUsage |= x509.KeyUsageCertSign
 
 	derBytes, derErr := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
-	if derErr != nil {
-		log.Fatalf("Failed to create certificate: %s", derErr)
-	}
+	log.ChkErrFatal(derErr)
 
 	certOut, err := os.Create(CAFilePath)
-	if err != nil {
-		log.Fatalf("failed to open "+CAFilePath+" for writing: %s", err)
-	}
+	log.ChkErrFatal(err)
 
 	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	b := x509.MarshalPKCS1PrivateKey(priv)
@@ -177,9 +154,8 @@ func GenerateArbiterToken() []byte {
 
 func GenerateArbiterTokenToFile(outputFilePath string) {
 	out, err := os.Create(outputFilePath)
-	if err != nil {
-		log.Fatalf("failed to open "+outputFilePath+" for writing: %s", err)
-	}
+	log.ChkErrFatal(err)
+
 	data := GenerateArbiterToken()
 	out.WriteString(b64.StdEncoding.EncodeToString(data))
 	out.Close()

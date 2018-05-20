@@ -1,7 +1,7 @@
 package databoxProxyMiddleware
 
 import (
-	"fmt"
+	log "databoxerrors"
 	"io"
 	"lib-go-databox/databoxRequest"
 	"net/http"
@@ -35,14 +35,13 @@ func (d databoxProxyMiddleware) Proxy(w http.ResponseWriter, r *http.Request) {
 
 	if _, ok := d.proxyList[parts[1]]; ok == false {
 		//no need to proxy
-		fmt.Println("[databoxProxyMiddleware.Proxy] not proxying ", parts[1], r.URL.Path)
 		d.next.ServeHTTP(w, r)
 		return
 	}
 
 	RequestURI := "https://" + parts[1] + ":8080/" + strings.Join(parts[2:], "/")
 
-	fmt.Println("Proxying internal request to  ", RequestURI)
+	log.Info("Proxying internal request to  " + RequestURI)
 
 	req, err := http.NewRequest(r.Method, RequestURI, r.Body)
 	for name, value := range r.Header {
@@ -66,7 +65,7 @@ func (d databoxProxyMiddleware) Proxy(w http.ResponseWriter, r *http.Request) {
 }
 
 func (d *databoxProxyMiddleware) Add(containerName string) {
-	fmt.Println("[databoxProxyMiddleware.Add]" + containerName)
+	log.Info("[databoxProxyMiddleware.Add]" + containerName)
 	d.proxyList[containerName] = containerName
 }
 

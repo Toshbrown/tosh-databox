@@ -7,6 +7,7 @@ import (
 
 	"databoxLoader"
 	"databoxLogParser"
+	log "databoxerrors"
 )
 
 func main() {
@@ -44,8 +45,10 @@ func main() {
 
 	switch os.Args[1] {
 	case "start":
+		log.Info("Starting Databox ...")
 		databox.Start(*startCmdIP)
 	case "stop":
+		log.Info("Stoping Databox ...")
 		stopCmd.Parse(os.Args[2:])
 		databox.Stop()
 	case "logs":

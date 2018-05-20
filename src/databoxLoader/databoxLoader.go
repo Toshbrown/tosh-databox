@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 
-	derr "databoxerrors"
+	log "databoxerrors"
 )
 
 type databoxLoader struct {
@@ -42,7 +42,7 @@ func (d *databoxLoader) Start(ip string) {
 		ListenAddr:    "127.0.0.1",
 		AdvertiseAddr: ip,
 	})
-	derr.ChkErr(err)
+	log.ChkErrFatal(err)
 
 	d.createContainerManager()
 
@@ -54,13 +54,13 @@ func (d *databoxLoader) Stop() {
 	filters.Add("label", "databox.type")
 
 	containers, err := d.cli.ContainerList(context.Background(), types.ContainerListOptions{Filters: filters})
-	derr.ChkErr(err)
+	log.ChkErr(err)
 
 	if len(containers) > 0 {
 		for _, container := range containers {
 			fmt.Println("Removing old databox container")
 			err := d.cli.ContainerStop(context.Background(), container.ID, nil)
-			derr.ChkErr(err)
+			log.ChkErr(err)
 		}
 	}
 
@@ -71,13 +71,13 @@ func (d *databoxLoader) Stop() {
 	}
 
 	services, err := d.cli.ServiceList(context.Background(), types.ServiceListOptions{Filters: filters})
-	derr.ChkErr(err)
+	log.ChkErr(err)
 
 	if len(services) > 0 {
 		for _, service := range services {
 			fmt.Println("Removing old databox service")
 			err := d.cli.ServiceRemove(context.Background(), service.ID)
-			derr.ChkErr(err)
+			log.ChkErr(err)
 		}
 	}
 
@@ -150,7 +150,7 @@ func (d *databoxLoader) createContainerManager() {
 	//d.pullImage(service.TaskTemplate.ContainerSpec.Image)
 
 	_, err := d.cli.ServiceCreate(context.Background(), service, serviceOptions)
-	derr.ChkErr(err)
+	log.ChkErr(err)
 
 }
 
@@ -163,7 +163,7 @@ func (d *databoxLoader) pullImage(image string) {
 
 	if len(images) == 0 {
 		_, err := d.cli.ImagePull(context.Background(), image, types.ImagePullOptions{})
-		derr.ChkErr(err)
+		log.ChkErr(err)
 	}
 }
 
@@ -174,10 +174,10 @@ func (d *databoxLoader) removeContainer(name string) {
 		Filters: filters,
 		All:     true,
 	})
-	derr.ChkErr(clerr)
+	log.ChkErr(clerr)
 
 	if len(containers) > 0 {
 		rerr := d.cli.ContainerRemove(context.Background(), containers[0].ID, types.ContainerRemoveOptions{Force: true})
-		derr.ChkErr(rerr)
+		log.ChkErr(rerr)
 	}
 }
