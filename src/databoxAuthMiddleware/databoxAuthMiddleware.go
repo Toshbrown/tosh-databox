@@ -36,12 +36,12 @@ func (d *databoxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 		parts := strings.Split(r.URL.Path, "/")
 
 		if len(parts) <= 2 {
-			//call to / notthing to do here
+			//call to / nothing to do here
 			next.ServeHTTP(w, r)
 			return
 		}
 
-		//TOFO workout why calling d.proxy.Exists(parts[1]) hangs the https server ..... ???
+		//TODO workout why calling d.proxy.Exists(parts[1]) hangs the https server ..... ???
 		if parts[1] != "api" { //&& d.proxy.Exists(parts[1]) == false {
 			//its not an api endpoint or a proxyed UI no need to auth
 			log.Debug("Not UI or api call")
