@@ -5,15 +5,18 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
+	"time"
 
 	//databox "github.com/me-box/lib-go-databox"
 
 	"lib-go-databox/coreStoreClient"
 	databoxTypes "lib-go-databox/types"
 
+	"databoxAuthMiddleware"
 	"databoxProxyMiddleware"
+
+	log "databoxerrors"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -31,35 +34,47 @@ func ServeSecure(cm ContainerManager) {
 	//start the https server for the app UI
 	r := mux.NewRouter()
 	dboxproxy := databoxProxyMiddleware.New("/certs/containerManager.crt")
+	log.Debug("Installing ProxyMiddleware")
 	r.Use(dboxproxy.ProxyMiddleware)
-
 	//proxy to the arbiter ui
 	dboxproxy.Add("arbiter")
 
+	log.Debug("Installing databoxAuthMiddleware")
+	dboxauth := databoxAuthMiddleware.New("qwertyuiop", dboxproxy)
+	r.Use(dboxauth.AuthMiddleware)
+
 	r.HandleFunc("/api/datasource/list", func(w http.ResponseWriter, r *http.Request) {
+		log.Debug("/api/datasource/list called")
 		hyperCatRoot, err := ac.GetRootDataSourceCatalogue()
 		if err != nil {
-			fmt.Println("Error:: ", err)
+			log.Err("/api/datasource/list GetRootDataSourceCatalogue " + err.Error())
 		}
 
+		hcr, _ := json.Marshal(hyperCatRoot)
+		log.Debug("/api/datasource/list hyperCatRoot=" + string(hcr))
 		var datasources []databoxTypes.HypercatItem
 		for _, item := range hyperCatRoot.Items {
-			//get the cat
+			//get the store cat
 			storeURL, _ := coreStoreClient.GetStoreURLFromDsHref(item.Href)
-			sc := coreStoreClient.NewCoreStoreClient(request, ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
+			sc := coreStoreClient.NewCoreStoreClient(request, ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, true)
 			storeCat, err := sc.GetStoreDataSourceCatalogue(item.Href)
+			time.Sleep(time.Second * 2)
 			if err != nil {
-				fmt.Println("[/api/datasource/list] Error GetStoreDataSourceCatalogue ", err.Error())
+				log.Err("[/api/datasource/list] Error GetStoreDataSourceCatalogue " + err.Error())
 			}
+			src, _ := json.Marshal(storeCat)
+			log.Debug("/api/datasource/list got store cat: " + string(src))
 			//build the datasource list
 			for _, ds := range storeCat.Items {
+				log.Debug("/api/datasource/list " + ds.Href)
 				datasources = append(datasources, ds)
 			}
 		}
 		jsonString, err := json.Marshal(datasources)
 		if err != nil {
-			fmt.Println("[/api/datasource/list] Error ", err)
+			log.Err("[/api/datasource/list] Error " + err.Error())
 		}
+		log.Debug("[/api/datasource/list] sending cat to client: " + string(jsonString))
 		w.Write(jsonString)
 
 	}).Methods("GET")
@@ -156,21 +171,28 @@ func ServeSecure(cm ContainerManager) {
 		sla := databoxTypes.SLA{}
 		err := json.Unmarshal(slaString, &sla)
 		if err != nil {
-			fmt.Println("[/api/install] Error invalid sla json ", err.Error())
-			return //TODO return an error!!!
+			log.Err("[/api/install] Error invalid sla json " + err.Error())
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))
+			return
 		}
 
 		fmt.Println("[/api/install] installing " + sla.Name)
 
 		//add to proxy
-		dboxproxy.Add(sla.Name)
+		//log.Debug("/api/install dboxproxy.Add")
+		//dboxproxy.Add(sla.Name)
 
 		//TODO check and return an error!!!
+		log.Debug("/api/install LaunchFromSLA")
 		cm.LaunchFromSLA(sla)
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":200,"msg":"Success"}`))
+
+		log.Debug("/api/install finished")
 
 	}).Methods("POST")
 
@@ -189,5 +211,5 @@ func ServeSecure(cm ContainerManager) {
 	r.PathPrefix("/").Handler(static)
 
 	//log.Fatal(http.ListenAndServeTLS(":443", databox.GetHttpsCredentials(), databox.GetHttpsCredentials(), router))
-	log.Fatal(http.ListenAndServeTLS(":443", "./certs/container-manager.pem", "./certs/container-manager.pem", r))
+	log.ChkErrFatal(http.ListenAndServeTLS(":443", "./certs/container-manager.pem", "./certs/container-manager.pem", r))
 }

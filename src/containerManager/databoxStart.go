@@ -314,6 +314,9 @@ func (d *Databox) startExportService() {
 	s1ID := d.createSecretFromFile("DATABOX_EXPORT_SERVICE.pem", "./certs/export-service.pem")
 
 	service := swarm.ServiceSpec{
+		Annotations: swarm.Annotations{
+			Labels: map[string]string{"databox.type": "system"},
+		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
 				Image: d.registry + "/export-service:" + d.version,
@@ -371,6 +374,9 @@ func (d *Databox) startExportService() {
 func (d *Databox) startArbiter() {
 
 	service := swarm.ServiceSpec{
+		Annotations: swarm.Annotations{
+			Labels: map[string]string{"databox.type": "system"},
+		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
 				Image: d.registry + "/arbiter:" + d.version,

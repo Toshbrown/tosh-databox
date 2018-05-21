@@ -249,7 +249,7 @@ func (cm ContainerManager) launchStore(sla databoxTypes.SLA, netConf coreNetwork
 
 	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
 	if err != nil {
-		log.Err("[launchStore] Error Store launching " + requiredStoreName + " " + err.Error())
+		log.Err("Launching store " + requiredStoreName + " " + err.Error())
 	}
 
 	return storeName
@@ -266,7 +266,7 @@ func (cm ContainerManager) addSecrets(containerName string, databoxType databoxT
 		}
 		secretCreateResponse, err := cm.cli.SecretCreate(context.Background(), secret)
 		if err != nil {
-			log.Err("[addSecrets] createSecret error " + err.Error())
+			log.Err("addSecrets createSecret " + err.Error())
 		}
 		return &swarm.SecretReference{
 			SecretID:   secretCreateResponse.ID,
@@ -319,7 +319,7 @@ func (cm ContainerManager) addSecrets(containerName string, databoxType databoxT
 	//update the arbiter with the containers token
 	err := cm.ArbiterClient.UpdateArbiter(containerName, b64TokenString, databoxType)
 	if err != nil {
-		log.Err("[addSecrets] Error updating arbiter " + err.Error())
+		log.Err("Add Secrets error updating arbiter " + err.Error())
 	}
 
 	//Only pass the zmq private key to stores.

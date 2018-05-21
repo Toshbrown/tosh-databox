@@ -9,6 +9,8 @@ import (
 	"net/url"
 	"strings"
 
+	log "databoxerrors"
+
 	arbiterClient "lib-go-databox/arbiterClient"
 	databoxTypes "lib-go-databox/types"
 
@@ -65,7 +67,7 @@ func (csc *CoreStoreClient) GetStoreDataSourceCatalogue(href string) (databoxTyp
 	if getErr != nil {
 		return databoxTypes.HypercatRoot{}, err
 	}
-
+	log.Debug("[GetStoreDataSourceCatalogue] got store cat: " + string(hypercatJSON))
 	cat := databoxTypes.HypercatRoot{}
 	json.Unmarshal(hypercatJSON, &cat)
 
