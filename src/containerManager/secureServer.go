@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"time"
 
 	//databox "github.com/me-box/lib-go-databox"
 
@@ -56,9 +55,8 @@ func ServeSecure(cm ContainerManager) {
 		for _, item := range hyperCatRoot.Items {
 			//get the store cat
 			storeURL, _ := coreStoreClient.GetStoreURLFromDsHref(item.Href)
-			sc := coreStoreClient.NewCoreStoreClient(request, ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, true)
+			sc := coreStoreClient.NewCoreStoreClient(request, ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
 			storeCat, err := sc.GetStoreDataSourceCatalogue(item.Href)
-			time.Sleep(time.Second * 2)
 			if err != nil {
 				log.Err("[/api/datasource/list] Error GetStoreDataSourceCatalogue " + err.Error())
 			}
