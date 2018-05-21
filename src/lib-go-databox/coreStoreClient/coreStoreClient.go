@@ -62,8 +62,9 @@ func (csc *CoreStoreClient) GetStoreDataSourceCatalogue(href string) (databoxTyp
 	if err != nil {
 		return databoxTypes.HypercatRoot{}, err
 	}
+	log.Debug("[GetStoreDataSourceCatalogue] got Token: " + string(token))
 
-	hypercatJSON, getErr := csc.zestC.Get(string(token), target, "JSON")
+	hypercatJSON, getErr := csc.zestC.Get(string(token), "/cat", "JSON")
 	if getErr != nil {
 		return databoxTypes.HypercatRoot{}, err
 	}
