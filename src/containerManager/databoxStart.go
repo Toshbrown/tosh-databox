@@ -27,6 +27,7 @@ type Databox struct {
 	registry                      string
 	version                       string
 	hostPath                      string
+	hostIP                        string
 	DATABOX_ROOT_CA_ID            string
 	CM_KEY_ID                     string
 	DATABOX_ARBITER_ID            string
@@ -49,6 +50,7 @@ func NewDatabox() Databox {
 		registry: "databoxsystems",
 		version:  os.Getenv("DATABOX_VERSION"),
 		hostPath: os.Getenv("DATABOX_HOST_PATH"),
+		hostIP:   os.Getenv("DATABOX_HOST_IP"),
 		DontPull: true, //dont pull images for now
 	}
 }
@@ -155,17 +157,20 @@ func (d *Databox) startCoreNetwork() {
 	d.setErr(err)
 
 	config := &container.Config{
-		Image:  d.registry + "/core-network:0.3.2", // + d.version, //TODO fix this core network was split in > 0.3.2
+		Image:  d.registry + "/core-network:" + d.version,
 		Labels: map[string]string{"databox.type": "databox-network"},
+		Cmd:    []string{"-f", "/tmp/relay"},
 	}
 
 	tokenPath := d.hostPath + "/certs/arbiterToken-databox-network"
 	pemPath := d.hostPath + "/certs/databox-network.pem"
+	BCASTFIFOPath := "/tmp/databox_relay"
 
 	hostConfig := &container.HostConfig{
 		Binds: []string{
 			tokenPath + ":/run/secrets/DATABOX_NETWORK_KEY:rw",
 			pemPath + ":/run/secrets/DATABOX_NETWORK.pem:rw",
+			BCASTFIFOPath + ":/tmp/relay",
 		},
 		CapAdd: []string{"NET_ADMIN"},
 	}
@@ -183,6 +188,39 @@ func (d *Databox) startCoreNetwork() {
 	d.pullImage(config.Image)
 
 	containerCreateCreatedBody, ccErr := d.cli.ContainerCreate(context.Background(), config, hostConfig, networkingConfig, containerName)
+	d.setErr(ccErr)
+
+	d.cli.ContainerStart(context.Background(), containerCreateCreatedBody.ID, types.ContainerStartOptions{})
+	d.DATABOX_DNS_IP, _ = d.getDNSIP()
+
+	//start core network relay
+	d.startCoreNetworkRelay()
+}
+
+func (d *Databox) startCoreNetworkRelay() {
+
+	config := &container.Config{
+		Image:  d.registry + "/core-network-relay:" + d.version,
+		Labels: map[string]string{"databox.type": "databox-network"},
+		Cmd:    []string{"-f", "/tmp/relay", "-h", d.hostIP},
+	}
+
+	BCASTFIFOPath := "/tmp/databox_relay"
+
+	hostConfig := &container.HostConfig{
+		Binds: []string{
+			BCASTFIFOPath + ":/tmp/relay",
+		},
+		NetworkMode: "host",
+	}
+
+	containerName := "databox-broadcast-relay"
+
+	d.removeContainer(containerName)
+
+	d.pullImage(config.Image)
+
+	containerCreateCreatedBody, ccErr := d.cli.ContainerCreate(context.Background(), config, hostConfig, &network.NetworkingConfig{}, containerName)
 	d.setErr(ccErr)
 
 	d.cli.ContainerStart(context.Background(), containerCreateCreatedBody.ID, types.ContainerStartOptions{})

@@ -53,19 +53,19 @@ func (d *DataboxProxyMiddleware) ProxyMiddleware(next http.Handler) http.Handler
 			req.Header.Set(name, value[0])
 		}
 		resp, err := d.httpClient.Do(req)
-		r.Body.Close()
-
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 			return
 		}
+
+		defer resp.Body.Close()
+		defer r.Body.Close()
 
 		for k, v := range resp.Header {
 			w.Header().Set(k, v[0])
 		}
 		w.WriteHeader(resp.StatusCode)
 		io.Copy(w, resp.Body)
-		resp.Body.Close()
 		return
 	}
 

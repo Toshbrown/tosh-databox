@@ -3,7 +3,9 @@ package databoxLoader
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -20,6 +22,7 @@ type databoxLoader struct {
 	registry string
 	version  string
 	path     string
+	host_ip  string
 }
 
 func New(version string) databoxLoader {
@@ -43,6 +46,12 @@ func (d *databoxLoader) Start(ip string) {
 		AdvertiseAddr: ip,
 	})
 	log.ChkErrFatal(err)
+
+	os.Remove("/tmp/databox_relay")
+	err = syscall.Mkfifo("/tmp/databox_relay", 0666)
+	log.ChkErrFatal(err)
+
+	d.host_ip = ip
 
 	d.createContainerManager()
 
@@ -113,6 +122,7 @@ func (d *databoxLoader) createContainerManager() {
 					"DATABOX_SDK=0",
 					"DATABOX_VERSION=" + d.version,
 					"DATABOX_HOST_PATH=" + d.path,
+					"DATABOX_HOST_IP=" + d.host_ip,
 				},
 				Mounts: []mount.Mount{
 					mount.Mount{

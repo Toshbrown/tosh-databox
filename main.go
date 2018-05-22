@@ -18,7 +18,7 @@ func main() {
 
 	startCmd := flag.NewFlagSet("start", flag.ExitOnError)
 	startCmdIP := startCmd.String("ip", "192.168.1.131", "The external IP to use")
-	startCmdRelease := startCmd.String("rel", "0.3.2", "Databox version to start, can uses tagged versions or latest")
+	startCmdRelease := startCmd.String("rel", "0.4.0", "Databox version to start, can uses tagged versions or latest")
 
 	stopCmd := flag.NewFlagSet("stop", flag.ExitOnError)
 	logsCmd := flag.NewFlagSet("logs", flag.ExitOnError)

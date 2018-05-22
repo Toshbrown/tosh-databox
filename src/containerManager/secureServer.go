@@ -24,6 +24,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
+var dboxproxy *databoxProxyMiddleware.DataboxProxyMiddleware
+
 func ServeSecure(cm ContainerManager) {
 
 	//pull required databox components from the ContainerManager
@@ -34,9 +36,9 @@ func ServeSecure(cm ContainerManager) {
 	//start the https server for the app UI
 	r := mux.NewRouter()
 
-	dboxproxy := databoxProxyMiddleware.New("/certs/containerManager.crt")
+	dboxproxy = databoxProxyMiddleware.New("/certs/containerManager.crt")
 	//proxy to the arbiter ui
-	dboxproxy.Add("arbiter")
+	//dboxproxy.Add("arbiter")
 
 	dboxauth := databoxAuthMiddleware.New("qwertyuiop", dboxproxy)
 
@@ -174,14 +176,15 @@ func ServeSecure(cm ContainerManager) {
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))
+			log.Err("[/api/install] invalid sla " + err.Error())
 			return
 		}
 
-		fmt.Println("[/api/install] installing " + sla.Name)
+		log.Info("[/api/install] installing " + sla.Name)
 
 		//add to proxy
-		//log.Debug("/api/install dboxproxy.Add")
-		//dboxproxy.Add(sla.Name)
+		log.Debug("/api/install dboxproxy.Add")
+		dboxproxy.Add(sla.Name)
 
 		//TODO check and return an error!!!
 		log.Debug("/api/install LaunchFromSLA")
