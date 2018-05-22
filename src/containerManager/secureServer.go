@@ -13,9 +13,10 @@ import (
 	databoxTypes "lib-go-databox/types"
 
 	"databoxAuthMiddleware"
-	"databoxProxyMiddleware"
 
 	log "databoxerrors"
+
+	"databoxProxyMiddleware"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -32,15 +33,15 @@ func ServeSecure(cm ContainerManager) {
 
 	//start the https server for the app UI
 	r := mux.NewRouter()
+
 	dboxproxy := databoxProxyMiddleware.New("/certs/containerManager.crt")
-	log.Debug("Installing ProxyMiddleware")
-	r.Use(dboxproxy.ProxyMiddleware)
 	//proxy to the arbiter ui
 	dboxproxy.Add("arbiter")
 
-	log.Debug("Installing databoxAuthMiddleware")
 	dboxauth := databoxAuthMiddleware.New("qwertyuiop", dboxproxy)
-	r.Use(dboxauth.AuthMiddleware)
+
+	log.Debug("Installing databox Middlewares")
+	r.Use(dboxauth.AuthMiddleware, dboxproxy.ProxyMiddleware)
 
 	r.HandleFunc("/api/datasource/list", func(w http.ResponseWriter, r *http.Request) {
 		log.Debug("/api/datasource/list called")
@@ -205,7 +206,6 @@ func ServeSecure(cm ContainerManager) {
 	}).Methods("POST")
 
 	static := http.FileServer(http.Dir("./www/https"))
-
 	r.PathPrefix("/").Handler(static)
 
 	//log.Fatal(http.ListenAndServeTLS(":443", databox.GetHttpsCredentials(), databox.GetHttpsCredentials(), router))

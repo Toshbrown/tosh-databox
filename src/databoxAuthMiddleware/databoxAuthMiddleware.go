@@ -11,40 +11,36 @@ import (
 	"sync"
 )
 
-type databoxAuthMiddleware struct {
+var allowedStaticPaths = map[string]string{"css": "", "js": "", "icons": "", "img": "", "": "", "cordova.js": ""}
+
+type DataboxAuthMiddleware struct {
 	sync.Mutex
 	session  string
 	proxy    *databoxProxyMiddleware.DataboxProxyMiddleware
 	password string
+	next     http.Handler
 }
 
-func New(password string, proxy *databoxProxyMiddleware.DataboxProxyMiddleware) *databoxAuthMiddleware {
+func New(password string, proxy *databoxProxyMiddleware.DataboxProxyMiddleware) *DataboxAuthMiddleware {
 
-	return &databoxAuthMiddleware{
+	return &DataboxAuthMiddleware{
 		password: password,
 		session:  "",
 		proxy:    proxy,
 	}
 }
 
-func (d *databoxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
+func (d *DataboxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 
-	Auth := func(w http.ResponseWriter, r *http.Request) {
+	auth := func(w http.ResponseWriter, r *http.Request) {
 
-		log.Debug(r.URL.Path)
+		log.Debug("AuthMiddleware path=" + r.URL.Path)
 
 		parts := strings.Split(r.URL.Path, "/")
 
-		if len(parts) <= 2 {
-			//call to / nothing to do here
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		//TODO workout why calling d.proxy.Exists(parts[1]) hangs the https server ..... ???
-		if parts[1] != "api" { //&& d.proxy.Exists(parts[1]) == false {
-			//its not an api endpoint or a proxyed UI no need to auth
-			log.Debug("Not UI or api call")
+		if _, ok := allowedStaticPaths[parts[1]]; ok {
+			//its allowed no auth needed
+			log.Debug("its allowed no auth needed")
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -54,10 +50,9 @@ func (d *databoxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 		//handle connect request
 		if len(parts) >= 3 && parts[2] == "connect" {
 			//check password and issue session token if its OK
-			log.Debug("Connect called checking password Token " + d.password + " = " + r.Header.Get("Authorization"))
+			log.Debug("Connect called checking password")
 			if ("Token " + d.password) == r.Header.Get("Authorization") {
 				log.Debug("Password OK!")
-
 				if d.session == "" {
 					//make a new session token
 					b := make([]byte, 24)
@@ -66,7 +61,9 @@ func (d *databoxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 				}
 
 				cookie := http.Cookie{Name: "databox_session", Value: d.session}
+				cookie1 := http.Cookie{Name: "tosh", Value: "test"}
 				http.SetCookie(w, &cookie)
+				http.SetCookie(w, &cookie1)
 				fmt.Fprintf(w, "connected")
 				return
 			}
@@ -77,7 +74,7 @@ func (d *databoxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		//Its not a connect request its an api call or a proxyed UI request
+		//Its not a connect request
 		// we must have a valid session cookie
 		sessionCookie, _ := r.Cookie("databox_session")
 		if sessionCookie != nil && d.session == sessionCookie.Value {
@@ -91,7 +88,7 @@ func (d *databoxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 		log.Warn("Authorization failed")
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprintf(w, "Authorization Required")
+		return
 	}
-
-	return http.HandlerFunc(Auth)
+	return http.HandlerFunc(auth)
 }
