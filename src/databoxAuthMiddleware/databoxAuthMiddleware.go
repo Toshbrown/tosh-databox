@@ -15,7 +15,7 @@ var allowedStaticPaths = map[string]string{"css": "", "js": "", "icons": "", "im
 
 type DataboxAuthMiddleware struct {
 	sync.Mutex
-	session  string
+	session  string //TODO this should be per user or at least per device
 	proxy    *databoxProxyMiddleware.DataboxProxyMiddleware
 	password string
 	next     http.Handler
@@ -60,10 +60,13 @@ func (d *DataboxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 					d.session = b64.StdEncoding.EncodeToString(b)
 				}
 
-				cookie := http.Cookie{Name: "databox_session", Value: d.session}
-				cookie1 := http.Cookie{Name: "tosh", Value: "test"}
+				cookie := http.Cookie{
+					Name:   "session",
+					Value:  d.session,
+					Domain: r.URL.Hostname(),
+					Path:   "/",
+				}
 				http.SetCookie(w, &cookie)
-				http.SetCookie(w, &cookie1)
 				fmt.Fprintf(w, "connected")
 				return
 			}
@@ -76,7 +79,7 @@ func (d *DataboxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 
 		//Its not a connect request
 		// we must have a valid session cookie
-		sessionCookie, _ := r.Cookie("databox_session")
+		sessionCookie, _ := r.Cookie("session")
 		if sessionCookie != nil && d.session == sessionCookie.Value {
 			log.Debug("Session cookie OK")
 			//session cookie is ok continue to the next Middleware
