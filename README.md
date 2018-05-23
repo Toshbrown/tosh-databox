@@ -17,6 +17,8 @@ up-to-date as of 0.3.2 - any new features/bug fixes will need to be ported
 - finish partial refractor or of lig-go-databox
 - odd paths and setup due to cramming it all into one repo (you may need to add github.com/toshbrown/tosh-databox to your $GOPATH to get IDEs to play)
 - add a container-manger-core-store, use it to store passwords, installed apps, root cert etc (no more writing to random files!!!)
+- proxy brake if http2 upgrade is attempted (curl dose this by default)
+- On app driver restart the IP of the containers needs to be updated see (https://github.com/me-box/core-container-manager/blob/master/src/container-manager.js#L284)
 
 # Getting it working
 

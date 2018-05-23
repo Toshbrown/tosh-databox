@@ -27,5 +27,4 @@ logs:
 
 .PHONY: test
 test:
-	bin/databox stop
 	./databox-test
