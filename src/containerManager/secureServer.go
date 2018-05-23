@@ -176,14 +176,13 @@ func ServeSecure(cm ContainerManager) {
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))
-			log.Err("[/api/install] invalid sla " + err.Error())
 			return
 		}
 
 		log.Info("[/api/install] installing " + sla.Name)
 
 		//add to proxy
-		log.Debug("/api/install dboxproxy.Add")
+		log.Debug("/api/install dboxproxy.Add " + sla.Name)
 		dboxproxy.Add(sla.Name)
 
 		//TODO check and return an error!!!
@@ -199,12 +198,78 @@ func ServeSecure(cm ContainerManager) {
 	}).Methods("POST")
 
 	r.HandleFunc("/api/restart", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		bodyString, err := ioutil.ReadAll(r.Body)
+		fmt.Println(bodyString)
+		type jsonStruct struct {
+			Name string `json:"id"`
+		}
+		jsonBody := jsonStruct{}
+		err = json.Unmarshal(bodyString, &jsonBody)
+		if err != nil {
+			log.Err("[/api/restart] Malformed JSON " + err.Error())
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"status":400,"msg": "Malformed JSON"}`))
+			return
+		}
+		if jsonBody.Name == "" {
+			log.Err("[/api/restart] Missing container name ")
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"status":400,"msg":Missing container name"}`))
+			return
+		}
+		log.Info("[/api/restart] restarting - " + jsonBody.Name)
+
+		//TODO handel IP changes
+
+		err = cm.Restart(jsonBody.Name)
+		if err != nil {
+			log.Err("[/api/restart] Restrat " + jsonBody.Name + " failed. " + err.Error())
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"status":400,"msg":"` + err.Error() + `"}`))
+			return
+		}
 
 	}).Methods("POST")
 
 	r.HandleFunc("/api/uninstall", func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		bodyString, err := ioutil.ReadAll(r.Body)
+		fmt.Println(string(bodyString))
+		type jsonStruct struct {
+			Name string `json:"id"`
+		}
+		jsonBody := jsonStruct{}
+		err = json.Unmarshal(bodyString, &jsonBody)
+		if err != nil {
+			log.Err("[/api/restart] Malformed JSON " + err.Error())
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"status":400,"msg":"Malformed JSON"}`))
+			return
+		}
+		if jsonBody.Name == "" {
+			log.Err("[/api/uninstall] Missing container name (id)")
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"status":400,"msg":Missing container name"}`))
+			return
+		}
+		log.Info("[/api/uninstall] uninstalling " + jsonBody.Name)
 
-		dboxproxy.Del("component name here!!!")
+		dboxproxy.Del(jsonBody.Name)
+
+		err = cm.Uninstall(jsonBody.Name)
+		if err != nil {
+			log.Err("[/api/uninstall] Uninstall of " + jsonBody.Name + " failed. " + err.Error())
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"status":400,"msg":"` + err.Error() + `"}`))
+			return
+		}
 
 	}).Methods("POST")
 

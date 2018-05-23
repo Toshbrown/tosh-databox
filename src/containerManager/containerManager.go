@@ -4,6 +4,7 @@ import (
 	"context"
 	b64 "encoding/base64"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/url"
 	"os"
@@ -16,6 +17,7 @@ import (
 	databoxTypes "lib-go-databox/types"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
@@ -454,4 +456,48 @@ func (cm ContainerManager) addPermission(name string, target string, path string
 
 	return cm.ArbiterClient.GrantContainerPermissions(newPermission)
 
+}
+
+func (cm ContainerManager) Restart(name string) error {
+	filters := filters.NewArgs()
+	filters.Add("label", "com.docker.swarm.service.name="+name)
+
+	contList, _ := cm.cli.ContainerList(context.Background(),
+		types.ContainerListOptions{
+			Filters: filters,
+		})
+	if len(contList) < 1 {
+		return errors.New("Service " + name + " not running")
+	}
+
+	return cm.cli.ContainerRestart(context.Background(), contList[0].ID, nil)
+}
+
+func (cm ContainerManager) Uninstall(name string) error {
+	serFilters := filters.NewArgs()
+	serFilters.Add("name", name)
+
+	serList, _ := cm.cli.ServiceList(context.Background(),
+		types.ServiceListOptions{
+			Filters: serFilters,
+		})
+	if len(serList) < 1 {
+		return errors.New("Service " + name + " not running")
+	}
+
+	err := cm.cli.ServiceRemove(context.Background(), serList[0].ID)
+
+	//remove secrets
+	secFilters := filters.NewArgs()
+	secFilters.Add("name", strings.ToUpper(name)+".pem")
+	secFilters.Add("name", strings.ToUpper(name)+"_KEY")
+
+	secretList, err := cm.cli.SecretList(context.Background(), types.SecretListOptions{
+		Filters: secFilters,
+	})
+	for _, s := range secretList {
+		cm.cli.SecretRemove(context.Background(), s.ID)
+	}
+
+	return err
 }
