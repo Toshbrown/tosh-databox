@@ -38,7 +38,7 @@ func ServeSecure(cm ContainerManager) {
 
 	dboxproxy = databoxProxyMiddleware.New("/certs/containerManager.crt")
 	//proxy to the arbiter ui
-	//dboxproxy.Add("arbiter")
+	dboxproxy.Add("arbiter")
 
 	dboxauth := databoxAuthMiddleware.New("qwertyuiop", dboxproxy)
 
