@@ -80,6 +80,28 @@ func ServeSecure(cm ContainerManager) {
 
 	}).Methods("GET")
 
+	r.HandleFunc("/api/store/cat/{store}", func(w http.ResponseWriter, r *http.Request) {
+		vars := mux.Vars(r)
+		store := vars["store"]
+		fmt.Println("[/api/store/cat/{store}] store ", store)
+		storeURL := "tcp://" + store + ":5555"
+		storeHref := "https://" + store + ":8080"
+		sc := coreStoreClient.NewCoreStoreClient(request, ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
+		storeCat, err := sc.GetStoreDataSourceCatalogue(storeHref)
+		if err != nil {
+			log.Err("[/api/store/cat/{store}] Error GetStoreDataSourceCatalogue " + err.Error())
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))
+		}
+		catStr, _ := json.Marshal(storeCat)
+
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write(catStr)
+
+	}).Methods("GET")
+
 	r.HandleFunc("/api/installed/list", func(w http.ResponseWriter, r *http.Request) {
 
 		filters := filters.NewArgs()
