@@ -10,7 +10,7 @@ import (
 )
 
 type DataboxProxyMiddleware struct {
-	mutex      *sync.Mutex
+	mutex      sync.Mutex
 	proxyList  map[string]string
 	httpClient *http.Client
 	next       http.Handler
@@ -23,11 +23,13 @@ func New(rootCertPath string) *DataboxProxyMiddleware {
 		h = databoxRequest.NewDataboxHTTPsAPIWithPaths(rootCertPath)
 	}
 
-	return &DataboxProxyMiddleware{
-		mutex:      &sync.Mutex{},
+	d := &DataboxProxyMiddleware{
+		mutex:      sync.Mutex{},
 		httpClient: h,
 		proxyList:  make(map[string]string),
 	}
+
+	return d
 }
 
 func (d *DataboxProxyMiddleware) ProxyMiddleware(next http.Handler) http.Handler {
@@ -36,8 +38,8 @@ func (d *DataboxProxyMiddleware) ProxyMiddleware(next http.Handler) http.Handler
 
 		parts := strings.Split(r.URL.Path, "/")
 
-		d.mutex.Lock()
-		defer d.mutex.Unlock()
+		//d.mutex.Lock()
+		//defer d.mutex.Unlock()
 		if _, ok := d.proxyList[parts[1]]; ok == false {
 			//no need to proxy
 			next.ServeHTTP(w, r)
@@ -73,23 +75,25 @@ func (d *DataboxProxyMiddleware) ProxyMiddleware(next http.Handler) http.Handler
 }
 
 func (d *DataboxProxyMiddleware) Add(containerName string) {
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
+	//d.mutex.Lock()
+	//defer d.mutex.Unlock()
 	d.proxyList[containerName] = containerName
+	return
 }
 
 func (d *DataboxProxyMiddleware) Del(containerName string) {
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
+	//d.mutex.Lock()
+	//defer d.mutex.Unlock()
 	_, ok := d.proxyList[containerName]
 	if ok {
 		delete(d.proxyList, containerName)
 	}
+	return
 }
 
 func (d *DataboxProxyMiddleware) Exists(containerName string) bool {
-	d.mutex.Lock()
-	defer d.mutex.Unlock()
+	//d.mutex.Lock()
+	//defer d.mutex.Unlock()
 	_, ok := d.proxyList[containerName]
 	return ok
 }
