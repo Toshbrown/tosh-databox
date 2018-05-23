@@ -470,7 +470,8 @@ func (cm ContainerManager) Restart(name string) error {
 		return errors.New("Service " + name + " not running")
 	}
 
-	return cm.cli.ContainerRestart(context.Background(), contList[0].ID, nil)
+	//Stop the container then the service will start a new one
+	return cm.cli.ContainerStop(context.Background(), contList[0].ID, nil)
 }
 
 func (cm ContainerManager) Uninstall(name string) error {
