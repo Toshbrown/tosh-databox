@@ -47,7 +47,7 @@ function test_assert_contains {
   fi
 }
 
-$DATABOX_SLA_REG="databox systems"
+DATABOX_SLA_REG="databox systems"
 
 function install_osmon_app_and_driver {
   #function to install app driver pair
@@ -83,12 +83,13 @@ function test_app_os_monitor {
 }
 
 #Start databox
-#go run main.go start
+go run main.go stop
+go run main.go start
 
 rm -rf ./databox-jar > /dev/null
 
 echo "Sleeping...."
-#sleep 30
+sleep 15
 docker ps
 
 UI_AUTH_TOKEN="qwertyuiop"

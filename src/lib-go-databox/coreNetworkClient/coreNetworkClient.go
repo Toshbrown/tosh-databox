@@ -136,6 +136,30 @@ func (cnc CoreNetworkClient) PreConfig(localContainerName string, sla databoxTyp
 	return NetworkConfig{NetworkName: networkName, DNS: ipOnNewNet}
 }
 
+func (cnc CoreNetworkClient) post(LogFnName string, data []byte, URL string) error {
+	fmt.Println("["+LogFnName+"] POSTED JSON :: ", string(data))
+	req, err := http.NewRequest("POST", URL, bytes.NewBuffer(data))
+	if err != nil {
+		fmt.Println("["+LogFnName+"] Error:: ", err.Error())
+		return err
+	}
+	req.Header.Set("x-api-key", cnc.CM_KEY)
+	req.Header.Set("Content-Type", "application/json")
+	req.Close = true
+	resp, err := cnc.request.Do(req)
+
+	if err != nil {
+		fmt.Println("["+LogFnName+"] Error ", err.Error())
+		return err
+	}
+
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		fmt.Println("["+LogFnName+"] PostError ", resp)
+		return err
+	}
+
+	return nil
+}
 func (cnc CoreNetworkClient) ConnectEndpoints(serviceName string, peers []string) error {
 
 	type postData struct {
@@ -151,28 +175,8 @@ func (cnc CoreNetworkClient) ConnectEndpoints(serviceName string, peers []string
 
 	postBytes, _ := json.Marshal(data)
 	fmt.Println("[ConnectEndpoints] POSTED JSON :: ", string(postBytes))
-	req, err := http.NewRequest("POST", "https://databox-network:8080/connect", bytes.NewBuffer(postBytes))
-	if err != nil {
-		fmt.Println("[ConnectEndpoints] Error:: ", err.Error())
-		return err
-	}
-	req.Header.Set("x-api-key", cnc.CM_KEY)
-	req.Header.Set("Content-Type", "application/json")
-	req.Close = true
-	resp, err := cnc.request.Do(req)
 
-	if err != nil {
-		fmt.Println("[ConnectEndpoints] Error ", err.Error())
-		return err
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		fmt.Println("[ConnectEndpoints] Error ", resp.StatusCode)
-		return err
-	}
-
-	return nil
-
+	return cnc.post("ConnectEndpoints", postBytes, "https://databox-network:8080/connect")
 }
 
 func (cnc CoreNetworkClient) RegisterPrivileged() error {
@@ -183,27 +187,25 @@ func (cnc CoreNetworkClient) RegisterPrivileged() error {
 	}
 
 	jsonStr := "{\"src_ip\":\"" + cmIP + "\"}"
-	req, err := http.NewRequest("POST", "https://databox-network:8080/privileged", bytes.NewBuffer([]byte(jsonStr)))
-	if err != nil {
-		fmt.Println("[RegisterPrivileged] Error:: ", err.Error())
-		return err
-	}
-	req.Header.Set("x-api-key", cnc.CM_KEY)
-	req.Header.Set("Content-Type", "application/json")
-	req.Close = true
-	resp, err := cnc.request.Do(req)
-	if err != nil {
-		fmt.Println("[addPrivileged] Error ", err.Error())
-		return err
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		defer resp.Body.Close()
-		body, _ := ioutil.ReadAll(resp.Body)
-		fmt.Println("[addPrivileged] Error ", resp.StatusCode, body)
-		return err
+	return cnc.post("RegisterPrivileged", []byte(jsonStr), "https://databox-network:8080/privileged")
+
+}
+
+func (cnc CoreNetworkClient) ServiceRestart(serviceName string, oldIP string, newIP string) error {
+
+	type postData struct {
+		Name  string `json:"name"`
+		OldIP string `json:"old_ip"`
+		NewIP string `json:"new_ip"`
 	}
 
-	return nil
+	data := postData{
+		Name:  serviceName,
+		OldIP: oldIP,
+		NewIP: newIP,
+	}
+	postBytes, _ := json.Marshal(data)
+	return cnc.post("ServiceRestart", postBytes, "https://databox-network:8080/restart")
 
 }
 

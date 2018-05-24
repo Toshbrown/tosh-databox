@@ -5,10 +5,12 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 
 	"certificateGenerator"
 	"lib-go-databox/arbiterClient"
@@ -173,13 +175,17 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 
 	serviceOptions := types.ServiceCreateOptions{}
 
-	//add datasource info to the env vars
+	//add datasource info to the env vars and crate a list of stores to assess
+	requiredStores := map[string]string{}
 	for _, ds := range sla.Datasources {
 		hypercatString, _ := json.Marshal(ds.Hypercat)
 		service.TaskTemplate.ContainerSpec.Env = append(
 			service.TaskTemplate.ContainerSpec.Env,
 			"DATASOURCE_"+ds.Clientid+"="+string(hypercatString),
 		)
+		parsedURL, _ := url.Parse(ds.Hypercat.Href)
+		storeName := parsedURL.Hostname()
+		requiredStores[storeName] = storeName
 	}
 
 	//launch a store if required
@@ -191,13 +197,23 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 		service.TaskTemplate.ContainerSpec.Env = append(service.TaskTemplate.ContainerSpec.Env,
 			"DATABOX_ZMQ_DEALER_ENDPOINT=tcp://"+storeName+":5556")
 
-		cm.CoreNetworkClient.ConnectEndpoints(localContainerName, []string{storeName})
+		requiredStores[storeName] = storeName
 
 	}
 
 	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
 	if err != nil {
 		log.Err("[launchApp] Error launching " + localContainerName + " " + err.Error())
+	}
+
+	//connect to stores
+	if len(requiredStores) > 0 {
+		storesToConnect := []string{}
+		for store := range requiredStores {
+			storesToConnect = append(storesToConnect, store)
+		}
+		fmt.Println("storesToConnect", storesToConnect)
+		cm.CoreNetworkClient.ConnectEndpoints(localContainerName, storesToConnect)
 	}
 
 	cm.addPermissionsFromSla(sla)
@@ -403,13 +419,13 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 			}
 
 			log.Info("Adding read permissions for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname())
-			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), "/"+datasourceName, "GET", []string{})
+			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), datasourceName, "GET", []string{})
 			if err != nil {
 				log.Err("Adding write permissions for Datasource " + err.Error())
 			}
 
 			log.Info("Adding read permissions for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname() + "/*")
-			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), "/"+datasourceName+"/*", "GET", []string{})
+			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), datasourceName+"/*", "GET", []string{})
 			if err != nil {
 				log.Err("Adding write permissions for Datasource " + err.Error())
 			}
@@ -470,8 +486,55 @@ func (cm ContainerManager) Restart(name string) error {
 		return errors.New("Service " + name + " not running")
 	}
 
+	//Stash the old container IP
+	oldIP := ""
+	for netName := range contList[0].NetworkSettings.Networks {
+		serviceName := strings.Replace(name, "-core-store", "", 1)
+		if strings.Contains(netName, serviceName) {
+			oldIP = contList[0].NetworkSettings.Networks[netName].IPAMConfig.IPv4Address
+		}
+	}
+
 	//Stop the container then the service will start a new one
-	return cm.cli.ContainerStop(context.Background(), contList[0].ID, nil)
+	err := cm.cli.ContainerRemove(context.Background(), contList[0].ID, types.ContainerRemoveOptions{Force: true})
+	if err != nil {
+		return errors.New("Cannot remove " + name + " " + err.Error())
+	}
+
+	//wait for the restarted container to start
+	var newContList []types.Container
+	loopCount := 0
+	for {
+
+		newContList, _ = cm.cli.ContainerList(context.Background(),
+			types.ContainerListOptions{
+				Filters: filters,
+			})
+
+		if len(newContList) < 1 {
+			time.Sleep(time.Second)
+			loopCount++
+			if loopCount > 10 {
+				return errors.New("Service has not restarted after 10 seconds !! Could not update corenetwork IP")
+			}
+			continue
+		}
+
+		break
+	}
+
+	//found restarted container !!!
+	//Stash the new container IP
+	newIP := ""
+	for netName := range newContList[0].NetworkSettings.Networks {
+		serviceName := strings.Replace(name, "-core-store", "", 1)
+		if strings.Contains(netName, serviceName) {
+			newIP = newContList[0].NetworkSettings.Networks[netName].IPAMConfig.IPv4Address
+			log.Debug("IP found " + newIP)
+		}
+	}
+
+	return cm.CoreNetworkClient.ServiceRestart(name, oldIP, newIP)
 }
 
 func (cm ContainerManager) Uninstall(name string) error {
