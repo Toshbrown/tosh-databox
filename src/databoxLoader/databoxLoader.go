@@ -59,25 +59,13 @@ func (d *databoxLoader) Start(ip string) {
 
 func (d *databoxLoader) Stop() {
 
-	filters := filters.NewArgs()
-	filters.Add("label", "databox.type")
-
-	containers, err := d.cli.ContainerList(context.Background(), types.ContainerListOptions{Filters: filters})
-	log.ChkErr(err)
-
-	if len(containers) > 0 {
-		for _, container := range containers {
-			fmt.Println("Removing old databox container")
-			err := d.cli.ContainerStop(context.Background(), container.ID, nil)
-			log.ChkErr(err)
-		}
-	}
-
-	_, err = d.cli.SwarmInspect(context.Background())
+	_, err := d.cli.SwarmInspect(context.Background())
 	if err != nil {
 		//Not in swarm mode databox is not running
 		return
 	}
+	filters := filters.NewArgs()
+	filters.Add("label", "databox.type")
 
 	services, err := d.cli.ServiceList(context.Background(), types.ServiceListOptions{Filters: filters})
 	log.ChkErr(err)
@@ -91,6 +79,18 @@ func (d *databoxLoader) Stop() {
 	}
 
 	d.cli.SwarmLeave(context.Background(), true)
+
+	containers, err := d.cli.ContainerList(context.Background(), types.ContainerListOptions{Filters: filters})
+	log.ChkErr(err)
+
+	if len(containers) > 0 {
+		for _, container := range containers {
+			fmt.Println("Removing old databox container")
+			err := d.cli.ContainerStop(context.Background(), container.ID, nil)
+			log.ChkErr(err)
+		}
+	}
+
 }
 
 func (d *databoxLoader) createContainerManager() {
