@@ -34,13 +34,13 @@ func (d *DataboxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 
 	auth := func(w http.ResponseWriter, r *http.Request) {
 
-		log.Debug("AuthMiddleware path=" + r.URL.Path)
+		//log.Debug("AuthMiddleware path=" + r.URL.Path)
 
 		parts := strings.Split(r.URL.Path, "/")
 
 		if _, ok := allowedStaticPaths[parts[1]]; ok {
 			//its allowed no auth needed
-			log.Debug("its allowed no auth needed")
+			//log.Debug("its allowed no auth needed")
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -81,7 +81,7 @@ func (d *DataboxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 		// we must have a valid session cookie
 		sessionCookie, _ := r.Cookie("session")
 		if sessionCookie != nil && d.session == sessionCookie.Value {
-			log.Debug("Session cookie OK")
+			//log.Debug("Session cookie OK")
 			//session cookie is ok continue to the next Middleware
 			next.ServeHTTP(w, r)
 			return
