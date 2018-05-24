@@ -52,8 +52,8 @@ func ServeSecure(cm ContainerManager) {
 			log.Err("/api/datasource/list GetRootDataSourceCatalogue " + err.Error())
 		}
 
-		hcr, _ := json.Marshal(hyperCatRoot)
-		log.Debug("/api/datasource/list hyperCatRoot=" + string(hcr))
+		//hcr, _ := json.Marshal(hyperCatRoot)
+		//log.Debug("/api/datasource/list hyperCatRoot=" + string(hcr))
 		var datasources []databoxTypes.HypercatItem
 		for _, item := range hyperCatRoot.Items {
 			//get the store cat
@@ -63,8 +63,8 @@ func ServeSecure(cm ContainerManager) {
 			if err != nil {
 				log.Err("[/api/datasource/list] Error GetStoreDataSourceCatalogue " + err.Error())
 			}
-			src, _ := json.Marshal(storeCat)
-			log.Debug("/api/datasource/list got store cat: " + string(src))
+			//src, _ := json.Marshal(storeCat)
+			//log.Debug("/api/datasource/list got store cat: " + string(src))
 			//build the datasource list
 			for _, ds := range storeCat.Items {
 				log.Debug("/api/datasource/list " + ds.Href)
@@ -134,7 +134,6 @@ func ServeSecure(cm ContainerManager) {
 
 		vars := mux.Vars(r)
 		serviceType := vars["type"]
-		fmt.Println("[/api/{type}/list] type ", serviceType)
 
 		services, _ := cli.ServiceList(context.Background(), types.ServiceListOptions{})
 
@@ -221,6 +220,8 @@ func ServeSecure(cm ContainerManager) {
 
 	r.HandleFunc("/api/restart", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+
 		bodyString, err := ioutil.ReadAll(r.Body)
 		fmt.Println(bodyString)
 		type jsonStruct struct {
@@ -230,31 +231,29 @@ func ServeSecure(cm ContainerManager) {
 		err = json.Unmarshal(bodyString, &jsonBody)
 		if err != nil {
 			log.Err("[/api/restart] Malformed JSON " + err.Error())
-			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg": "Malformed JSON"}`))
 			return
 		}
 		if jsonBody.Name == "" {
 			log.Err("[/api/restart] Missing container name ")
-			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":Missing container name"}`))
 			return
 		}
 		log.Info("[/api/restart] restarting - " + jsonBody.Name)
 
-		//TODO handel IP changes
-
 		err = cm.Restart(jsonBody.Name)
 		if err != nil {
 			log.Err("[/api/restart] Restrat " + jsonBody.Name + " failed. " + err.Error())
-			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":"` + err.Error() + `"}`))
 			return
 		}
 
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(`{"status":200,"msg":"Success"}`))
+		return
 	}).Methods("POST")
 
 	r.HandleFunc("/api/uninstall", func(w http.ResponseWriter, r *http.Request) {
@@ -298,6 +297,5 @@ func ServeSecure(cm ContainerManager) {
 	static := http.FileServer(http.Dir("./www/https"))
 	r.PathPrefix("/").Handler(static)
 
-	//log.Fatal(http.ListenAndServeTLS(":443", databox.GetHttpsCredentials(), databox.GetHttpsCredentials(), router))
 	log.ChkErrFatal(http.ListenAndServeTLS(":443", "./certs/container-manager.pem", "./certs/container-manager.pem", r))
 }
