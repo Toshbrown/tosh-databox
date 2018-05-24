@@ -373,7 +373,7 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 
 		for _, ds := range sla.Datasources {
 			datasourceEndpoint, _ := url.Parse(ds.Hypercat.Href)
-			datasourceName := strings.Replace(datasourceEndpoint.Path, "/", "", -1)
+			datasourceName := datasourceEndpoint.Path
 
 			//Deal with Actuators
 			isActuator := false
