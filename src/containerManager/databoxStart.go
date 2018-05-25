@@ -295,6 +295,8 @@ func (d *Databox) updateContainerManager() {
 			},
 		})
 
+	swarmService[0].Spec.TaskTemplate.ContainerSpec.Env = append(swarmService[0].Spec.TaskTemplate.ContainerSpec.Env, "DATABOX_DNS_IP="+d.DATABOX_DNS_IP)
+
 	_, err := d.cli.ServiceUpdate(
 		context.Background(),
 		swarmService[0].ID,

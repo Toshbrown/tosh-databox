@@ -1,13 +1,12 @@
 package main
 
 import (
-	"flag"
-	"fmt"
-	"os"
-
 	certificateGenerator "certificateGenerator"
 	containerManager "containerManager"
 	log "databoxerrors"
+	"flag"
+	"fmt"
+	"os"
 )
 
 func main() {

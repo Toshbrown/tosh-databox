@@ -32,6 +32,7 @@ type ContainerManager struct {
 	ArbiterClient      arbiterClient.ArbiterClient
 	CoreNetworkClient  coreNetworkClient.CoreNetworkClient
 	Request            *http.Client
+	DATABOX_DNS_IP     string
 	DATABOX_ROOT_CA_ID string
 	ZMQ_PUBLIC_KEY_ID  string
 	ZMQ_PRIVATE_KEY_ID string
@@ -52,6 +53,7 @@ func NewContainerManager(rootCASecretId string, zmqPublicId string, zmqPrivateId
 		ArbiterClient:      ac,
 		CoreNetworkClient:  cnc,
 		Request:            request,
+		DATABOX_DNS_IP:     os.Getenv("DATABOX_DNS_IP"),
 		DATABOX_ROOT_CA_ID: rootCASecretId,
 		ZMQ_PUBLIC_KEY_ID:  zmqPublicId,
 		ZMQ_PRIVATE_KEY_ID: zmqPrivateId,
@@ -67,7 +69,24 @@ func NewContainerManager(rootCASecretId string, zmqPublicId string, zmqPrivateId
 	//register with core-network
 	cnc.RegisterPrivileged()
 
+	time.Sleep(time.Second * 5)
+	//launch the CM store
+	cm.LaunchCMStore()
+
 	return cm
+}
+
+func (cm ContainerManager) LaunchCMStore() {
+	//startCMStore
+	sla := databoxTypes.SLA{
+		Name:        "container-manager",
+		DataboxType: "Driver",
+		ResourceRequirements: databoxTypes.ResourceRequirements{
+			Store: "core-store",
+		},
+	}
+	cm.launchStore(sla, coreNetworkClient.NetworkConfig{NetworkName: "databox-system-net", DNS: cm.DATABOX_DNS_IP})
+	cm.addPermissionsFromSla(sla)
 }
 
 func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
@@ -202,7 +221,7 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 
 	}
 
-	//connect to stores
+	//connect to networks
 	if len(requiredNetworks) > 0 {
 		networksToConnect := []string{}
 		for store := range requiredNetworks {
