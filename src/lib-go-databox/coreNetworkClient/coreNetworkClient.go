@@ -53,7 +53,7 @@ func NewCoreNetworkClient(containerManagerKeyPath string, request *http.Client) 
 
 func (cnc CoreNetworkClient) PreConfig(localContainerName string, sla databoxTypes.SLA) NetworkConfig {
 
-	networkName := localContainerName
+	networkName := localContainerName + "-network"
 
 	internal := true
 	if sla.DataboxType == "driver" {
@@ -74,7 +74,7 @@ func (cnc CoreNetworkClient) PreConfig(localContainerName string, sla databoxTyp
 		if err != nil {
 			fmt.Println("[PreConfig] NetworkInspect1 Error ", err.Error())
 		}
-
+		fmt.Println("[PreConfig] using existing network " + network.Name)
 	} else {
 		//create network
 		networkCreateResponse, err := cnc.cli.NetworkCreate(context.Background(), networkName, types.NetworkCreate{
@@ -122,7 +122,6 @@ func (cnc CoreNetworkClient) PreConfig(localContainerName string, sla databoxTyp
 
 	//find core-network IP on the new network to used as DNS
 	var ipOnNewNet string
-	//TODO this is wrong its not finding the IP !!!!
 	for _, cont := range network.Containers {
 		fmt.Println("contName=", cont.Name)
 		if cont.Name == "databox-network" {

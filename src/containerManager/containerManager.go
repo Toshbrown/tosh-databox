@@ -132,7 +132,7 @@ func (cm ContainerManager) launchDriver(sla databoxTypes.SLA) {
 		log.Err("[launchDriver] Error launching " + localContainerName + " " + err.Error())
 	}
 
-	cm.CoreNetworkClient.ConnectEndpoints(localContainerName, []string{storeName})
+	cm.CoreNetworkClient.ConnectEndpoints(localContainerName, []string{"arbiter", storeName})
 
 	cm.addPermissionsFromSla(sla)
 }
@@ -175,8 +175,9 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 
 	serviceOptions := types.ServiceCreateOptions{}
 
-	//add datasource info to the env vars and crate a list of stores to assess
-	requiredStores := map[string]string{}
+	//add datasource info to the env vars and crate a list networks this app needs to access assess
+	requiredNetworks := map[string]string{"arbiter": "arbiter", "export-service": "export-service"}
+
 	for _, ds := range sla.Datasources {
 		hypercatString, _ := json.Marshal(ds.Hypercat)
 		service.TaskTemplate.ContainerSpec.Env = append(
@@ -185,7 +186,7 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 		)
 		parsedURL, _ := url.Parse(ds.Hypercat.Href)
 		storeName := parsedURL.Hostname()
-		requiredStores[storeName] = storeName
+		requiredNetworks[storeName] = storeName
 	}
 
 	//launch a store if required
@@ -197,23 +198,23 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 		service.TaskTemplate.ContainerSpec.Env = append(service.TaskTemplate.ContainerSpec.Env,
 			"DATABOX_ZMQ_DEALER_ENDPOINT=tcp://"+storeName+":5556")
 
-		requiredStores[storeName] = storeName
+		requiredNetworks[storeName] = storeName
 
+	}
+
+	//connect to stores
+	if len(requiredNetworks) > 0 {
+		networksToConnect := []string{}
+		for store := range requiredNetworks {
+			networksToConnect = append(networksToConnect, store)
+		}
+		fmt.Println("networksToConnect", networksToConnect)
+		cm.CoreNetworkClient.ConnectEndpoints(localContainerName, networksToConnect)
 	}
 
 	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
 	if err != nil {
 		log.Err("[launchApp] Error launching " + localContainerName + " " + err.Error())
-	}
-
-	//connect to stores
-	if len(requiredStores) > 0 {
-		storesToConnect := []string{}
-		for store := range requiredStores {
-			storesToConnect = append(storesToConnect, store)
-		}
-		fmt.Println("storesToConnect", storesToConnect)
-		cm.CoreNetworkClient.ConnectEndpoints(localContainerName, storesToConnect)
 	}
 
 	cm.addPermissionsFromSla(sla)

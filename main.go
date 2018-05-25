@@ -17,7 +17,7 @@ func main() {
 	DOCKER_API_VERSION := flag.String("API", "1.35", "Docker API version ")
 
 	startCmd := flag.NewFlagSet("start", flag.ExitOnError)
-	startCmdIP := startCmd.String("ip", "192.168.1.131", "The external IP to use")
+	startCmdIP := startCmd.String("ip", "192.168.0.131", "The external IP to use")
 	startCmdRelease := startCmd.String("rel", "0.4.0", "Databox version to start, can uses tagged versions or latest")
 
 	stopCmd := flag.NewFlagSet("stop", flag.ExitOnError)
