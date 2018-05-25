@@ -7,7 +7,7 @@ import (
 
 	"databoxLoader"
 	"databoxLogParser"
-	log "databoxerrors"
+	log "databoxlog"
 )
 
 func main() {

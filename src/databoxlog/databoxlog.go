@@ -1,4 +1,4 @@
-package databoxerrors
+package databoxlog
 
 import (
 	"log"

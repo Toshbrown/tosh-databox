@@ -6,7 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	log "databoxerrors"
+	log "databoxlog"
 	b64 "encoding/base64"
 	"encoding/pem"
 	"fmt"

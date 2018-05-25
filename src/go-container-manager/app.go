@@ -3,7 +3,7 @@ package main
 import (
 	certificateGenerator "certificateGenerator"
 	containerManager "containerManager"
-	log "databoxerrors"
+	log "databoxlog"
 	"flag"
 	"fmt"
 	"os"

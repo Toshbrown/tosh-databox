@@ -14,7 +14,7 @@ import (
 
 	"databoxAuthMiddleware"
 
-	log "databoxerrors"
+	log "databoxlog"
 
 	"databoxProxyMiddleware"
 

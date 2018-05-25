@@ -3,7 +3,7 @@ package databoxAuthMiddleware
 import (
 	"crypto/rand"
 	"databoxProxyMiddleware"
-	log "databoxerrors"
+	log "databoxlog"
 	b64 "encoding/base64"
 	"fmt"
 	"net/http"

@@ -13,7 +13,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 
-	log "databoxerrors"
+	log "databoxlog"
 )
 
 type databoxLoader struct {

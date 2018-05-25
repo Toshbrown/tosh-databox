@@ -1,7 +1,7 @@
 package databoxProxyMiddleware
 
 import (
-	log "databoxerrors"
+	log "databoxlog"
 	"io"
 	"lib-go-databox/databoxRequest"
 	"net/http"

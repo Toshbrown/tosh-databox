@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"strings"
 
-	log "databoxerrors"
+	log "databoxlog"
 
 	arbiterClient "lib-go-databox/arbiterClient"
 	databoxTypes "lib-go-databox/types"
