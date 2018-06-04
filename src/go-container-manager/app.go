@@ -14,7 +14,7 @@ func main() {
 	//TODO parse CMD input for stop and dev mode etc
 
 	DOCKER_API_VERSION := flag.String("API", "1.35", "Docker API version ")
-	IP := flag.String("ip", "192.168.1.131", "The external IP to use")
+	IP := flag.String("ip", "127.0.0.1", "The external IP to use")
 	//DEV              := flag.Bool("dev", false, "Use this to enable dev mode")
 	flag.Parse()
 
@@ -32,7 +32,7 @@ func main() {
 	go containerManager.ServeInsecure()
 	go containerManager.ServeSecure(cm)
 
-	fmt.Println("CM Ready and watling")
+	fmt.Println("CM Ready and waiting")
 
 	//Wait for a quit message
 	quit := make(chan int)
@@ -54,6 +54,9 @@ func generateArbiterTokens() {
 	}
 
 	for _, name := range components {
+		if _, err := os.Stat(certsBasePath + "/arbiterToken-" + name); err == nil {
+			continue
+		}
 		certificateGenerator.GenerateArbiterTokenToFile(certsBasePath + "/arbiterToken-" + name)
 	}
 }
@@ -80,7 +83,6 @@ func generateDataboxCertificates(IP string) {
 	for _, name := range components {
 		fmt.Println(name)
 		if _, err := os.Stat(certsBasePath + "/" + name + ".pem"); err == nil {
-			//fmt.Println("Cert exists, delete the  " + certsBasePath + "/" + name + ".pem to regenerate")
 			continue
 		}
 		log.Info("Making cert " + certsBasePath + "/" + name + ".pem")
