@@ -6,13 +6,14 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"time"
 
 	databoxTypes "lib-go-databox/types"
+
+	log "databoxlog"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -38,7 +39,7 @@ func NewCoreNetworkClient(containerManagerKeyPath string, request *http.Client) 
 	cmKeyBytes, err := ioutil.ReadFile(containerManagerKeyPath)
 	var cmKey string
 	if err != nil {
-		fmt.Println("Warning:: failed to read core-network CM_KEY using empty string")
+		log.Warn("Warning:: failed to read core-network CM_KEY using empty string")
 		cmKey = ""
 	} else {
 		cmKey = b64.StdEncoding.EncodeToString([]byte(cmKeyBytes))
@@ -72,9 +73,9 @@ func (cnc CoreNetworkClient) PreConfig(localContainerName string, sla databoxTyp
 		//network exists
 		network, err = cnc.cli.NetworkInspect(context.Background(), networkList[0].ID, types.NetworkInspectOptions{})
 		if err != nil {
-			fmt.Println("[PreConfig] NetworkInspect1 Error ", err.Error())
+			log.Err("[PreConfig] NetworkInspect1 Error " + err.Error())
 		}
-		fmt.Println("[PreConfig] using existing network " + network.Name)
+		log.Info("[PreConfig] using existing network " + network.Name)
 	} else {
 		//create network
 		networkCreateResponse, err := cnc.cli.NetworkCreate(context.Background(), networkName, types.NetworkCreate{
@@ -83,12 +84,12 @@ func (cnc CoreNetworkClient) PreConfig(localContainerName string, sla databoxTyp
 			Attachable: true,
 		})
 		if err != nil {
-			fmt.Println("[PreConfig] NetworkCreate Error ", err.Error())
+			log.Err("[PreConfig] NetworkCreate Error " + err.Error())
 		}
 
 		network, err = cnc.cli.NetworkInspect(context.Background(), networkCreateResponse.ID, types.NetworkInspectOptions{})
 		if err != nil {
-			fmt.Println("[PreConfig] NetworkInspect2 Error ", err.Error())
+			log.Err("[PreConfig] NetworkInspect2 Error " + err.Error())
 		}
 
 		//find core network
@@ -98,7 +99,7 @@ func (cnc CoreNetworkClient) PreConfig(localContainerName string, sla databoxTyp
 			Filters: f,
 		})
 		if err != nil {
-			fmt.Println("[PreConfig] ContainerList Error ", err.Error())
+			log.Err("[PreConfig] ContainerList Error " + err.Error())
 		}
 
 		//attach to core-network
@@ -109,37 +110,36 @@ func (cnc CoreNetworkClient) PreConfig(localContainerName string, sla databoxTyp
 			&dockerNetworkTypes.EndpointSettings{},
 		)
 		if err != nil {
-			fmt.Println("[PreConfig] NetworkConnect Error ", err.Error())
+			log.Err("[PreConfig] NetworkConnect Error " + err.Error())
 		}
 		time.Sleep(time.Second * 5)
 		//refresh network status
 		network, err = cnc.cli.NetworkInspect(context.Background(), networkCreateResponse.ID, types.NetworkInspectOptions{})
 		if err != nil {
-			fmt.Println("[PreConfig] NetworkInspect3 Error ", err.Error())
+			log.Err("[PreConfig] NetworkInspect3 Error " + err.Error())
 		}
-		fmt.Println("network::", network)
 	}
 
 	//find core-network IP on the new network to used as DNS
 	var ipOnNewNet string
 	for _, cont := range network.Containers {
-		fmt.Println("contName=", cont.Name)
+		log.Debug("contName=" + cont.Name)
 		if cont.Name == "databox-network" {
 			ipOnNewNet = strings.Split(cont.IPv4Address, "/")[0]
 			break
 		}
 	}
 
-	fmt.Println("[PreConfig]", networkName, ipOnNewNet)
+	log.Info("[PreConfig]" + networkName + " " + ipOnNewNet)
 
 	return NetworkConfig{NetworkName: networkName, DNS: ipOnNewNet}
 }
 
 func (cnc CoreNetworkClient) post(LogFnName string, data []byte, URL string) error {
-	fmt.Println("["+LogFnName+"] POSTED JSON :: ", string(data))
+	log.Debug("[" + LogFnName + "] POSTED JSON :: " + string(data))
 	req, err := http.NewRequest("POST", URL, bytes.NewBuffer(data))
 	if err != nil {
-		fmt.Println("["+LogFnName+"] Error:: ", err.Error())
+		log.Err("[" + LogFnName + "] Error:: " + err.Error())
 		return err
 	}
 	req.Header.Set("x-api-key", cnc.CM_KEY)
@@ -148,17 +148,18 @@ func (cnc CoreNetworkClient) post(LogFnName string, data []byte, URL string) err
 	resp, err := cnc.request.Do(req)
 
 	if err != nil {
-		fmt.Println("["+LogFnName+"] Error ", err.Error())
+		log.Err("[" + LogFnName + "] Error " + err.Error())
 		return err
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		fmt.Println("["+LogFnName+"] PostError ", resp)
+		log.Err("[" + LogFnName + "] PostError ")
 		return err
 	}
 
 	return nil
 }
+
 func (cnc CoreNetworkClient) ConnectEndpoints(serviceName string, peers []string) error {
 
 	type postData struct {
@@ -170,10 +171,8 @@ func (cnc CoreNetworkClient) ConnectEndpoints(serviceName string, peers []string
 		Name:  serviceName,
 		Peers: peers,
 	}
-	fmt.Println("data:: ", serviceName, peers, data)
 
 	postBytes, _ := json.Marshal(data)
-	fmt.Println("[ConnectEndpoints] POSTED JSON :: ", string(postBytes))
 
 	return cnc.post("ConnectEndpoints", postBytes, "https://databox-network:8080/connect")
 }
@@ -218,7 +217,7 @@ func (cnc CoreNetworkClient) getCmIP() (string, error) {
 	})
 
 	if len(containerList) < 1 {
-		fmt.Println("[getCmIP] Error no CM found for core-network")
+		log.Err("[getCmIP] Error no CM found for core-network")
 		return "", errors.New("No CM found for core-network")
 	}
 
@@ -226,7 +225,7 @@ func (cnc CoreNetworkClient) getCmIP() (string, error) {
 		return containerList[0].NetworkSettings.Networks["databox-system-net"].IPAddress, nil
 	}
 
-	fmt.Println("[getCmIP] CM not on core-network")
+	log.Err("[getCmIP] CM not on core-network")
 	return "", errors.New("CM not on core-network")
 
 }
