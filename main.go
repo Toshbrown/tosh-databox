@@ -17,8 +17,8 @@ func main() {
 	DOCKER_API_VERSION := flag.String("API", "1.35", "Docker API version ")
 
 	startCmd := flag.NewFlagSet("start", flag.ExitOnError)
-	startCmdIP := startCmd.String("ip", "192.168.0.131", "The external IP to use")
-	startCmdRelease := startCmd.String("rel", "0.4.0", "Databox version to start, can uses tagged versions or latest")
+	startCmdIP := startCmd.String("swarm-ip", "127.0.0.1", "The external IP to use")
+	startCmdRelease := startCmd.String("release", "0.4.0", "Databox version to start, can uses tagged versions or latest")
 	//TODO sort out the cm image name
 	cmImage := startCmd.String("cm", "go-container-manager", "Override container-manager image")
 	arbiterImage := startCmd.String("arbiter", "databoxsystems/arbiter", "Override arbiter image")
@@ -80,8 +80,8 @@ func displayUsage() {
 		Usage:
 			start - start databox
 				Options:
-					--ip The external IP to use to advertise the swarm
-					--rel Databox version to start, can uses tagged versions or latest
+					--swarm-ip The external IP to use to advertise the swarm
+					--release Databox version to start, can uses tagged versions or latest
 					--cm Override container-manager image
 					--arbiter Override arbiter image
 					--core-network Override container-manager image
