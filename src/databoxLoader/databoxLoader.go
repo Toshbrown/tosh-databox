@@ -17,14 +17,21 @@ import (
 )
 
 type databoxLoader struct {
-	cli      *client.Client
-	debug    bool
-	registry string
-	version  string
-	path     string
-	host_ip  string
+	cli                   *client.Client
+	debug                 bool
+	registry              string
+	version               string
+	path                  string
+	host_ip               string
+	cmImage               string
+	arbiterImage          string
+	coreNetworkImage      string
+	coreNetworkRelayImage string
+	appServerImage        string
+	exportServiceImage    string
 }
 
+//TODO dose this need to be in a module or just part of the main app?
 func New(version string) databoxLoader {
 	cli, _ := client.NewEnvClient()
 
@@ -39,7 +46,7 @@ func New(version string) databoxLoader {
 	}
 }
 
-func (d *databoxLoader) Start(ip string) {
+func (d *databoxLoader) Start(ip, cmImage, arbiterImage, coreNetworkImage, coreNetworkRelayImage, appServerImage, exportServiceImage string) {
 
 	_, err := d.cli.SwarmInit(context.Background(), swarm.InitRequest{
 		ListenAddr:    "127.0.0.1",
@@ -47,11 +54,19 @@ func (d *databoxLoader) Start(ip string) {
 	})
 	log.ChkErrFatal(err)
 
+	//TODO move databox_relay creation into the CM
 	os.Remove("/tmp/databox_relay")
 	err = syscall.Mkfifo("/tmp/databox_relay", 0666)
 	log.ChkErrFatal(err)
 
 	d.host_ip = ip
+
+	d.cmImage = cmImage
+	d.arbiterImage = arbiterImage
+	d.coreNetworkImage = coreNetworkImage
+	d.coreNetworkRelayImage = coreNetworkRelayImage
+	d.appServerImage = appServerImage
+	d.exportServiceImage = exportServiceImage
 
 	d.createContainerManager()
 
@@ -114,7 +129,7 @@ func (d *databoxLoader) createContainerManager() {
 	service := swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:  d.registry + "go-container-manager:latest", // + d.version, //TODO this is hardcoded to latest for now !!
+				Image:  d.cmImage,
 				Labels: map[string]string{"databox.type": "container-manager"},
 				Env: []string{
 					"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080",
@@ -123,6 +138,10 @@ func (d *databoxLoader) createContainerManager() {
 					"DATABOX_VERSION=" + d.version,
 					"DATABOX_HOST_PATH=" + d.path,
 					"DATABOX_HOST_IP=" + d.host_ip,
+					"DATABOX_ARBITER_IMAGE=" + d.arbiterImage,
+					"DATABOX_CORE_NETWORK_IMAGE=" + d.coreNetworkImage,
+					"DATABOX_CORE_NETWORK_RELAY_IMAGE=" + d.coreNetworkRelayImage,
+					"DATABOX_APP_SERVER_IMAGE=" + d.appServerImage,
 				},
 				Mounts: []mount.Mount{
 					mount.Mount{

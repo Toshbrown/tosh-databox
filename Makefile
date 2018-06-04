@@ -6,12 +6,12 @@ all: build
 
 .PHONY: build
 build:
-	docker build -t go-container-manager .
+	docker build -t go-container-manager:0.4.0 .
 	@GOPATH=$(DATABOX_GOPATH) go build -o bin/$(PACKAGE) main.go
 
 .PHONY: build-cm
 build-cm:
-	docker build -t go-container-manager .
+	docker build -t go-container-manager:0.4.0 .
 
 .PHONY: build-cmd
 build-cmd:
