@@ -18,6 +18,8 @@ import (
 	"lib-go-databox/databoxRequest"
 	databoxTypes "lib-go-databox/types"
 
+	"lib-go-databox/coreStoreClient"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
@@ -31,6 +33,7 @@ type ContainerManager struct {
 	cli                *client.Client
 	ArbiterClient      arbiterClient.ArbiterClient
 	CoreNetworkClient  coreNetworkClient.CoreNetworkClient
+	CoreStoreClient    coreStoreClient.CoreStoreClient
 	Request            *http.Client
 	DATABOX_DNS_IP     string
 	DATABOX_ROOT_CA_ID string
@@ -38,6 +41,8 @@ type ContainerManager struct {
 	ZMQ_PRIVATE_KEY_ID string
 	ARCH               string
 	Version            string
+	cmStoreURL         string
+	Logger             *log.Logger
 }
 
 func NewContainerManager(rootCASecretId string, zmqPublicId string, zmqPrivateId string) ContainerManager {
@@ -71,12 +76,21 @@ func NewContainerManager(rootCASecretId string, zmqPublicId string, zmqPrivateId
 
 	time.Sleep(time.Second * 5)
 	//launch the CM store
-	cm.LaunchCMStore()
+	cm.cmStoreURL = cm.LaunchCMStore()
+
+	//setup the cm to log to the store
+	csc := coreStoreClient.New(cm.Request, &cm.ArbiterClient, "/run/secrets/ZMQ_PUBLIC_KEY", cm.cmStoreURL, false)
+	l, err := log.New(csc)
+	if err != nil {
+		log.Err("Filed to set up logging to store. " + err.Error())
+	}
+	cm.Logger = l
+	cm.Logger.Debug("CM logs going to the cm store")
 
 	return cm
 }
 
-func (cm ContainerManager) LaunchCMStore() {
+func (cm ContainerManager) LaunchCMStore() string {
 	//startCMStore
 	sla := databoxTypes.SLA{
 		Name:        "container-manager",
@@ -87,6 +101,8 @@ func (cm ContainerManager) LaunchCMStore() {
 	}
 	cm.launchStore(sla, coreNetworkClient.NetworkConfig{NetworkName: "databox-system-net", DNS: cm.DATABOX_DNS_IP})
 	cm.addPermissionsFromSla(sla)
+
+	return "tcp://container-manager-core-store:5555"
 }
 
 func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
@@ -194,7 +210,7 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 
 	serviceOptions := types.ServiceCreateOptions{}
 
-	//add datasource info to the env vars and crate a list networks this app needs to access assess
+	//add datasource info to the env vars and create a list networks this app needs to access assess
 	requiredNetworks := map[string]string{"arbiter": "arbiter", "export-service": "export-service"}
 
 	for _, ds := range sla.Datasources {
@@ -231,12 +247,12 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 		cm.CoreNetworkClient.ConnectEndpoints(localContainerName, networksToConnect)
 	}
 
+	cm.addPermissionsFromSla(sla)
+
 	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
 	if err != nil {
 		log.Err("[launchApp] Error launching " + localContainerName + " " + err.Error())
 	}
-
-	cm.addPermissionsFromSla(sla)
 
 }
 
@@ -355,6 +371,7 @@ func (cm ContainerManager) addSecrets(containerName string, databoxType databoxT
 	secrets = append(secrets, createSecret(strings.ToUpper(containerName)+"_KEY", rawToken, "ARBITER_TOKEN"))
 
 	//update the arbiter with the containers token
+	log.Debug("addSecrets UpdateArbiter " + containerName + " " + b64TokenString + " " + string(databoxType))
 	err := cm.ArbiterClient.UpdateArbiter(containerName, b64TokenString, databoxType)
 	if err != nil {
 		log.Err("Add Secrets error updating arbiter " + err.Error())
@@ -386,7 +403,6 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 
 	//set export permissions from export-whitelist
 	if len(sla.ExportWhitelists) > 0 {
-
 		urlsString := "destination = \""
 		for i, whiteList := range sla.ExportWhitelists {
 			urlsString = urlsString + whiteList.Url
@@ -404,7 +420,7 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 		}
 	}
 
-	//set export permissions from export-whitelist
+	//set export permissions from ExternalWhitelist
 	if sla.DataboxType == "driver" && len(sla.ExternalWhitelist) > 0 {
 		//TODO move this logic to the coreNetworkClient
 		for _, whiteList := range sla.ExternalWhitelist {
@@ -497,7 +513,7 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 }
 
 func (cm ContainerManager) addPermission(name string, target string, path string, method string, caveats []string) error {
-
+	//TODO move this to the arbiterClient
 	newPermission := arbiterClient.ContainerPermissions{
 		Name: name,
 		Route: arbiterClient.Route{

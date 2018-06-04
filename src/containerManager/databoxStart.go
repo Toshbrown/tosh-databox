@@ -2,6 +2,7 @@ package containerManager
 
 import (
 	"context"
+	log "databoxlog"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -71,31 +72,25 @@ func (d *Databox) Start() (string, string, string) {
 	//start the core containers
 	d.startCoreNetwork()
 
-	//SET CM DNS, create secrets and join to databox-system-net
-	d.updateContainerManager()
-
 	//Create global secrets that are used in more than one container
 	fmt.Println("Creating secrets")
 	d.DATABOX_ROOT_CA_ID = d.createSecretFromFile("DATABOX_ROOT_CA", "./certs/containerManager.crt")
 	d.CM_KEY_ID = d.createSecretFromFile("CM_KEY", "./certs/arbiterToken-container-manager")
+
 	d.DATABOX_ARBITER_ID = d.createSecretFromFile("DATABOX_ARBITER.pem", "./certs/arbiter.pem")
 	d.DATABOX_EXPORT_SERVICE_KEY_ID = d.createSecretFromFile("DATABOX_EXPORT_SERVICE_KEY", "./certs/arbiterToken-export-service")
 
 	d.DATABOX_PEM = d.createSecretFromFile("DATABOX.pem", "./certs/container-manager.pem") //TODO sort out certs!!
 	d.DATABOX_NETWORK_KEY = d.createSecretFromFile("DATABOX_NETWORK_KEY", "./certs/arbiterToken-databox-network")
 
-	//get the ZMQ secret IDs to pass to other containers
-	filters := filters.NewArgs()
-	filters.Add("name", "ZMQ_")
-	zmqsecrests, _ := d.cli.SecretList(context.Background(), types.SecretListOptions{Filters: filters})
-	for _, secret := range zmqsecrests {
-		if secret.Spec.Name == "ZMQ_PUBLIC_KEY" {
-			d.ZMQ_PUBLIC_KEY_ID = secret.ID
-		}
-		if secret.Spec.Name == "ZMQ_SECRET_KEY" {
-			d.ZMQ_SECRET_KEY_ID = secret.ID
-		}
-	}
+	//make ZMQ secrests
+	public, private, zmqErr := zmq.NewCurveKeypair()
+	d.setErr(zmqErr)
+	d.ZMQ_PUBLIC_KEY_ID = d.createSecret("ZMQ_PUBLIC_KEY", public)
+	d.ZMQ_SECRET_KEY_ID = d.createSecret("ZMQ_SECRET_KEY", private)
+
+	//SET CM DNS, create secrets and join to databox-system-net
+	d.updateContainerManager()
 
 	d.startAppServer()
 	d.startArbiter()
@@ -264,12 +259,6 @@ func (d *Databox) updateContainerManager() {
 		return
 	}
 
-	//make ZMQ secrests
-	public, private, zmqErr := zmq.NewCurveKeypair()
-	d.setErr(zmqErr)
-	d.ZMQ_PUBLIC_KEY_ID = d.createSecret("ZMQ_PUBLIC_KEY", public)
-	d.ZMQ_SECRET_KEY_ID = d.createSecret("ZMQ_SECRET_KEY", private)
-
 	fmt.Println("Updating container-manager Service", d.DATABOX_DNS_IP)
 
 	swarmService[0].Spec.TaskTemplate.ContainerSpec.DNSConfig = &swarm.DNSConfig{
@@ -289,6 +278,18 @@ func (d *Databox) updateContainerManager() {
 			SecretName: "ZMQ_PUBLIC_KEY",
 			File: &swarm.SecretReferenceFileTarget{
 				Name: "ZMQ_PUBLIC_KEY",
+				UID:  "0",
+				GID:  "0",
+				Mode: 929,
+			},
+		})
+	swarmService[0].Spec.TaskTemplate.ContainerSpec.Secrets = append(
+		swarmService[0].Spec.TaskTemplate.ContainerSpec.Secrets,
+		&swarm.SecretReference{
+			SecretID:   d.DATABOX_ROOT_CA_ID,
+			SecretName: "DATABOX_ROOT_CA",
+			File: &swarm.SecretReferenceFileTarget{
+				Name: "DATABOX_ROOT_CA",
 				UID:  "0",
 				GID:  "0",
 				Mode: 929,
@@ -482,12 +483,21 @@ func (d *Databox) startArbiter() {
 
 func (d *Databox) createSecret(name, data string) string {
 
+	filters := filters.NewArgs()
+	filters.Add("name", name)
+	secrestsList, _ := d.cli.SecretList(context.Background(), types.SecretListOptions{Filters: filters})
+	if len(secrestsList) > 0 {
+		//we have made this before just return the ID
+		return secrestsList[0].ID
+	}
+
 	secret := swarm.SecretSpec{
 		Annotations: swarm.Annotations{
 			Name: name,
 		},
 		Data: []byte(data),
 	}
+	log.Debug("createSecret for " + name)
 	secretCreateResponse, err := d.cli.SecretCreate(context.Background(), secret)
 	d.setErr(err)
 
@@ -497,16 +507,8 @@ func (d *Databox) createSecret(name, data string) string {
 func (d *Databox) createSecretFromFile(name, dataPath string) string {
 
 	data, _ := ioutil.ReadFile(dataPath)
-	secret := swarm.SecretSpec{
-		Annotations: swarm.Annotations{
-			Name: name,
-		},
-		Data: data,
-	}
-	secretCreateResponse, err := d.cli.SecretCreate(context.Background(), secret)
-	d.setErr(err)
 
-	return secretCreateResponse.ID
+	return d.createSecret(name, string(data))
 }
 
 func (d *Databox) removeContainer(name string) {

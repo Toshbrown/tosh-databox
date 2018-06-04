@@ -153,10 +153,13 @@ func GenerateArbiterToken() []byte {
 }
 
 func GenerateArbiterTokenToFile(outputFilePath string) {
+	log.Debug("GenerateArbiterTokenToFile" + outputFilePath)
 	out, err := os.Create(outputFilePath)
 	log.ChkErrFatal(err)
 
 	data := GenerateArbiterToken()
+	log.Debug("GenerateArbiterTokenToFile data=" + b64.StdEncoding.EncodeToString(data))
+
 	out.WriteString(b64.StdEncoding.EncodeToString(data))
 	out.Close()
 }

@@ -45,6 +45,13 @@ func ServeSecure(cm ContainerManager) {
 	log.Debug("Installing databox Middlewares")
 	r.Use(dboxauth.AuthMiddleware, dboxproxy.ProxyMiddleware)
 
+	r.HandleFunc("/api/cmlogs", func(w http.ResponseWriter, r *http.Request) {
+		jsonString := cm.Logger.GetLastNLogEntriesRaw(100)
+		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+		w.WriteHeader(http.StatusOK)
+		w.Write(jsonString)
+	}).Methods("GET")
+
 	r.HandleFunc("/api/datasource/list", func(w http.ResponseWriter, r *http.Request) {
 		log.Debug("/api/datasource/list called")
 		hyperCatRoot, err := ac.GetRootDataSourceCatalogue()
@@ -58,7 +65,7 @@ func ServeSecure(cm ContainerManager) {
 		for _, item := range hyperCatRoot.Items {
 			//get the store cat
 			storeURL, _ := coreStoreClient.GetStoreURLFromDsHref(item.Href)
-			sc := coreStoreClient.NewCoreStoreClient(request, ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
+			sc := coreStoreClient.New(request, &ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
 			storeCat, err := sc.GetStoreDataSourceCatalogue(item.Href)
 			if err != nil {
 				log.Err("[/api/datasource/list] Error GetStoreDataSourceCatalogue " + err.Error())
@@ -86,7 +93,7 @@ func ServeSecure(cm ContainerManager) {
 		fmt.Println("[/api/store/cat/{store}] store ", store)
 		storeURL := "tcp://" + store + ":5555"
 		storeHref := "https://" + store + ":8080"
-		sc := coreStoreClient.NewCoreStoreClient(request, ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
+		sc := coreStoreClient.New(request, &ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
 		storeCat, err := sc.GetStoreDataSourceCatalogue(storeHref)
 		if err != nil {
 			log.Err("[/api/store/cat/{store}] Error GetStoreDataSourceCatalogue " + err.Error())
@@ -193,7 +200,7 @@ func ServeSecure(cm ContainerManager) {
 		sla := databoxTypes.SLA{}
 		err := json.Unmarshal(slaString, &sla)
 		if err != nil {
-			log.Err("[/api/install] Error invalid sla json " + err.Error())
+			log.Err("[/api/install] Error invalid sla json " + err.Error() + "JSON=" + string(slaString))
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))

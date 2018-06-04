@@ -111,11 +111,17 @@ type ContainerPermissions struct {
 
 func (arb *ArbiterClient) GrantContainerPermissions(permissions ContainerPermissions) error {
 
+	if len(permissions.Caveats) == 0 {
+		permissions.Caveats = nil
+	}
+
 	jsonPostData, _ := json.Marshal(permissions)
+
+	fmt.Println("[GrantContainerPermissions] json data: " + string(jsonPostData))
 
 	req, err := http.NewRequest("POST", arb.arbiterURL+"/cm/grant-container-permissions", bytes.NewBuffer(jsonPostData))
 	if err != nil {
-		fmt.Println("[UpdateArbiter] Error:: ", err)
+		fmt.Println("[GrantContainerPermissions] Error:: ", err)
 		return err
 	}
 	req.Header.Set("X-Api-Key", arb.arbiterToken)
@@ -125,7 +131,7 @@ func (arb *ArbiterClient) GrantContainerPermissions(permissions ContainerPermiss
 	//TODO check response
 	_, err = arb.request.Do(req)
 	if err != nil {
-		fmt.Println("[UpdateArbiter] Error:: ", err)
+		fmt.Println("[GrantContainerPermissions] Error:: ", err)
 		return err
 	}
 

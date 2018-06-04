@@ -9,8 +9,6 @@ import (
 	"net/url"
 	"strings"
 
-	log "databoxlog"
-
 	arbiterClient "lib-go-databox/arbiterClient"
 	databoxTypes "lib-go-databox/types"
 
@@ -18,18 +16,17 @@ import (
 )
 
 type CoreStoreClient struct {
-	zestC     zest.ZestClient
-	arbiter   arbiterClient.ArbiterClient
-	request   *http.Client
-	zEndpoint string
-	dEndpoint string
-	TS        TScoreStoreClient_0_3_0
+	ZestC     zest.ZestClient
+	Arbiter   *arbiterClient.ArbiterClient
+	Request   *http.Client
+	ZEndpoint string
+	DEndpoint string
 }
 
-func NewCoreStoreClient(databoxRequest *http.Client, arbiterClient arbiterClient.ArbiterClient, serverKeyPath string, storeEndPoint string, enableLogging bool) CoreStoreClient {
-	csc := CoreStoreClient{
-		arbiter: arbiterClient,
-		request: databoxRequest,
+func New(databoxRequest *http.Client, arbiterClient *arbiterClient.ArbiterClient, serverKeyPath string, storeEndPoint string, enableLogging bool) *CoreStoreClient {
+	csc := &CoreStoreClient{
+		Arbiter: arbiterClient,
+		Request: databoxRequest,
 	}
 
 	//get the server key
@@ -39,14 +36,12 @@ func NewCoreStoreClient(databoxRequest *http.Client, arbiterClient arbiterClient
 		serverKey = []byte("vl6wu0A@XP?}Or/&BR#LSxn>A+}L)p44/W[wXL3<")
 	}
 
-	csc.zEndpoint = storeEndPoint
-	csc.dEndpoint = strings.Replace(storeEndPoint, ":5555", ":5556", 1)
-	csc.zestC, err = zest.New(csc.zEndpoint, csc.dEndpoint, string(serverKey), enableLogging)
+	csc.ZEndpoint = storeEndPoint
+	csc.DEndpoint = strings.Replace(storeEndPoint, ":5555", ":5556", 1)
+	csc.ZestC, err = zest.New(csc.ZEndpoint, csc.DEndpoint, string(serverKey), enableLogging)
 	if err != nil {
 		fmt.Println("[NewCoreStoreClient] Error zest.New ", err.Error())
 	}
-
-	csc.TS = NewTSCoreStoreClient(arbiterClient, csc.zestC)
 
 	return csc
 }
@@ -58,17 +53,17 @@ func (csc *CoreStoreClient) GetStoreDataSourceCatalogue(href string) (databoxTyp
 	target := href + "/cat"
 	method := "GET"
 
-	token, err := csc.arbiter.RequestToken(target, method)
+	token, err := csc.Arbiter.RequestToken(target, method)
 	if err != nil {
 		return databoxTypes.HypercatRoot{}, err
 	}
-	log.Debug("[GetStoreDataSourceCatalogue] got Token: " + string(token))
+	//log.Debug("[GetStoreDataSourceCatalogue] got Token: " + string(token))
 
-	hypercatJSON, getErr := csc.zestC.Get(string(token), "/cat", "JSON")
+	hypercatJSON, getErr := csc.ZestC.Get(string(token), "/cat", "JSON")
 	if getErr != nil {
 		return databoxTypes.HypercatRoot{}, err
 	}
-	log.Debug("[GetStoreDataSourceCatalogue] got store cat: " + string(hypercatJSON))
+	//log.Debug("[GetStoreDataSourceCatalogue] got store cat: " + string(hypercatJSON))
 	cat := databoxTypes.HypercatRoot{}
 	json.Unmarshal(hypercatJSON, &cat)
 
@@ -82,15 +77,15 @@ func (csc *CoreStoreClient) RegisterDatasource(metadata databoxTypes.DataSourceM
 
 	path := "/cat"
 
-	token, err := csc.arbiter.RequestToken(csc.zEndpoint+path, "POST")
+	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "POST")
 	if err != nil {
 		return err
 	}
-	hypercatJSON, err := csc.dataSourceMetadataToHypercat(metadata, csc.zEndpoint+"/ts/")
+	hypercatJSON, err := csc.dataSourceMetadataToHypercat(metadata, csc.ZEndpoint+"/ts/")
 
-	writeErr := csc.zestC.Post(string(token), path, hypercatJSON, "JSON")
+	writeErr := csc.ZestC.Post(string(token), path, hypercatJSON, "JSON")
 	if writeErr != nil {
-		csc.arbiter.InvalidateCache(csc.zEndpoint+path, "POST")
+		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "POST")
 		return errors.New("Error writing: " + writeErr.Error())
 	}
 
