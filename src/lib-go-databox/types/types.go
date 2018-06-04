@@ -51,7 +51,7 @@ type Manifest struct {
 	Repository           Repository           `json:"repository"`
 	Packages             []Package            `json:"packages"`
 	ExportWhitelists     []ExportWhitelist    `json:"export-whitelist"`
-	ExternalWhitelist    ExternalWhitelist    `json:"external-whitelist"`
+	ExternalWhitelist    []ExternalWhitelist  `json:"external-whitelist"`
 	ResourceRequirements ResourceRequirements `json:"resource-requirements"`
 	DisplayName          string               `json:"displayName"`
 	StoreURL             string               `json:"storeUrl"`
@@ -72,7 +72,7 @@ type SLA struct {
 	AllowedCombinations  []string             `json:"allowed-combinations"`
 	Datasources          []DataSource         `json:"datasources"`
 	ExportWhitelists     []ExportWhitelist    `json:"export-whitelist"`
-	ExternalWhitelist    ExternalWhitelist    `json:"external-whitelist"`
+	ExternalWhitelist    []ExternalWhitelist  `json:"external-whitelist"`
 	ResourceRequirements ResourceRequirements `json:"resource-requirements"`
 	DisplayName          string               `json:"displayName"`
 	StoreURL             string               `json:"storeUrl"`
