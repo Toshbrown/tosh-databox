@@ -400,7 +400,25 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 
 		err = cm.addPermission(localContainerName, "export-service", "/export/", "POST", []string{urlsString})
 		if err != nil {
-			log.Err("Adding write permissions for Actuator " + err.Error())
+			log.Err("Adding write permissions for export-service " + err.Error())
+		}
+	}
+
+	//set export permissions from export-whitelist
+	if sla.DataboxType == "driver" && len(sla.ExternalWhitelist) > 0 {
+		//TODO move this logic to the coreNetworkClient
+		for _, whiteList := range sla.ExternalWhitelist {
+			log.Debug("addPermissionsFromSla adding ExternalWhitelist for " + localContainerName + " on " + strings.Join(whiteList.Urls, ", "))
+			externals := []string{}
+			for _, u := range whiteList.Urls {
+				parsedURL, err := url.Parse(u)
+				if err != nil {
+					log.Warn("Error parsing url in ExternalWhitelist")
+				}
+				externals = append(externals, parsedURL.Hostname())
+			}
+			err := cm.CoreNetworkClient.ConnectEndpoints(localContainerName, externals)
+			log.ChkErr(err)
 		}
 	}
 
