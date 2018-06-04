@@ -48,6 +48,10 @@ func (d *DataboxProxyMiddleware) ProxyMiddleware(next http.Handler) http.Handler
 
 		RequestURI := "https://" + parts[1] + ":8080/" + strings.Join(parts[2:], "/")
 
+		if r.URL.RawQuery != "" {
+			RequestURI = RequestURI + "?" + r.URL.RawQuery
+		}
+
 		log.Debug("Proxying internal request to  " + RequestURI)
 
 		req, err := http.NewRequest(r.Method, RequestURI, r.Body)
