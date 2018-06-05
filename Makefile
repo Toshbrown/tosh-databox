@@ -31,4 +31,4 @@ logs:
 
 .PHONY: test
 test:
-	./databox-test
+	@GOPATH=$(DATABOX_GOPATH) ./databox-test
