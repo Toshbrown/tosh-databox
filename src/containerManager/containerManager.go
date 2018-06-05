@@ -45,6 +45,7 @@ type ContainerManager struct {
 	Logger             *log.Logger
 }
 
+// NewContainerManager returns a configured ContainerManager
 func NewContainerManager(rootCASecretId string, zmqPublicId string, zmqPrivateId string) ContainerManager {
 
 	cli, _ := client.NewEnvClient()
@@ -76,7 +77,7 @@ func NewContainerManager(rootCASecretId string, zmqPublicId string, zmqPrivateId
 
 	time.Sleep(time.Second * 5)
 	//launch the CM store
-	cm.cmStoreURL = cm.LaunchCMStore()
+	cm.cmStoreURL = cm.launchCMStore()
 
 	//setup the cm to log to the store
 	csc := coreStoreClient.New(cm.Request, &cm.ArbiterClient, "/run/secrets/ZMQ_PUBLIC_KEY", cm.cmStoreURL, false)
@@ -90,7 +91,154 @@ func NewContainerManager(rootCASecretId string, zmqPublicId string, zmqPrivateId
 	return cm
 }
 
-func (cm ContainerManager) LaunchCMStore() string {
+// LaunchFromSLA will start a databox app or driver with the reliant stores and grant permissions required as described in the SLA
+func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
+
+	//Make the localContainerName
+	localContainerName := sla.Name + cm.ARCH
+
+	//Make the requiredStoreName if needed
+	//TODO check store is supported!!
+	requiredStoreName := ""
+	if sla.ResourceRequirements.Store != "" {
+		requiredStoreName = sla.Name + "-" + sla.ResourceRequirements.Store + cm.ARCH
+	}
+
+	//Create the networks and attach to the core-network.
+	netConf := cm.CoreNetworkClient.PreConfig(localContainerName, sla)
+
+	//start the container
+	var service swarm.ServiceSpec
+	var serviceOptions types.ServiceCreateOptions
+	var requiredNetworks []string
+	switch sla.DataboxType {
+	case databoxTypes.DataboxTypeApp:
+		service, serviceOptions, requiredNetworks = cm.getAppConfig(sla, localContainerName, netConf)
+	case databoxTypes.DataboxTypeDriver:
+		service, serviceOptions, requiredNetworks = cm.getDriverConfig(sla, localContainerName, netConf)
+	}
+
+	//If we need a store lets create one and set the needed environment variables
+	if requiredStoreName != "" {
+		service.TaskTemplate.ContainerSpec.Env = append(
+			service.TaskTemplate.ContainerSpec.Env,
+			"DATABOX_ZMQ_ENDPOINT=tcp://"+requiredStoreName+":5555",
+		)
+		service.TaskTemplate.ContainerSpec.Env = append(
+			service.TaskTemplate.ContainerSpec.Env,
+			"DATABOX_ZMQ_DEALER_ENDPOINT=tcp://"+requiredStoreName+":5556",
+		)
+		cm.launchStore(sla.ResourceRequirements.Store, requiredStoreName, netConf)
+		requiredNetworks = append(requiredNetworks, requiredStoreName)
+	}
+
+	fmt.Println("networksToConnect", requiredNetworks)
+	cm.CoreNetworkClient.ConnectEndpoints(localContainerName, requiredNetworks)
+
+	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
+	if err != nil {
+		log.Err("[Error launching] " + localContainerName + " " + err.Error())
+	}
+
+	cm.addPermissionsFromSLA(sla)
+
+	return nil
+}
+
+func (cm ContainerManager) Restart(name string) error {
+	filters := filters.NewArgs()
+	filters.Add("label", "com.docker.swarm.service.name="+name)
+
+	contList, _ := cm.cli.ContainerList(context.Background(),
+		types.ContainerListOptions{
+			Filters: filters,
+		})
+	if len(contList) < 1 {
+		return errors.New("Service " + name + " not running")
+	}
+
+	//Stash the old container IP
+	oldIP := ""
+	for netName := range contList[0].NetworkSettings.Networks {
+		serviceName := strings.Replace(name, "-core-store", "", 1)
+		if strings.Contains(netName, serviceName) {
+			oldIP = contList[0].NetworkSettings.Networks[netName].IPAMConfig.IPv4Address
+		}
+	}
+
+	//Stop the container then the service will start a new one
+	err := cm.cli.ContainerRemove(context.Background(), contList[0].ID, types.ContainerRemoveOptions{Force: true})
+	if err != nil {
+		return errors.New("Cannot remove " + name + " " + err.Error())
+	}
+
+	//wait for the restarted container to start
+	var newContList []types.Container
+	loopCount := 0
+	for {
+
+		newContList, _ = cm.cli.ContainerList(context.Background(),
+			types.ContainerListOptions{
+				Filters: filters,
+			})
+
+		if len(newContList) < 1 {
+			time.Sleep(time.Second)
+			loopCount++
+			if loopCount > 10 {
+				return errors.New("Service has not restarted after 10 seconds !! Could not update corenetwork IP")
+			}
+			continue
+		}
+
+		break
+	}
+
+	//found restarted container !!!
+	//Stash the new container IP
+	newIP := ""
+	for netName := range newContList[0].NetworkSettings.Networks {
+		serviceName := strings.Replace(name, "-core-store", "", 1)
+		if strings.Contains(netName, serviceName) {
+			newIP = newContList[0].NetworkSettings.Networks[netName].IPAMConfig.IPv4Address
+			log.Debug("IP found " + newIP)
+		}
+	}
+
+	return cm.CoreNetworkClient.ServiceRestart(name, oldIP, newIP)
+}
+
+func (cm ContainerManager) Uninstall(name string) error {
+	serFilters := filters.NewArgs()
+	serFilters.Add("name", name)
+
+	serList, _ := cm.cli.ServiceList(context.Background(),
+		types.ServiceListOptions{
+			Filters: serFilters,
+		})
+	if len(serList) < 1 {
+		return errors.New("Service " + name + " not running")
+	}
+
+	err := cm.cli.ServiceRemove(context.Background(), serList[0].ID)
+
+	//remove secrets
+	secFilters := filters.NewArgs()
+	secFilters.Add("name", strings.ToUpper(name)+".pem")
+	secFilters.Add("name", strings.ToUpper(name)+"_KEY")
+
+	secretList, err := cm.cli.SecretList(context.Background(), types.SecretListOptions{
+		Filters: secFilters,
+	})
+	for _, s := range secretList {
+		cm.cli.SecretRemove(context.Background(), s.ID)
+	}
+
+	return err
+}
+
+// launchCMStore start a core-store the the container manager to store its configuration
+func (cm ContainerManager) launchCMStore() string {
 	//startCMStore
 	sla := databoxTypes.SLA{
 		Name:        "container-manager",
@@ -99,33 +247,15 @@ func (cm ContainerManager) LaunchCMStore() string {
 			Store: "core-store",
 		},
 	}
-	cm.launchStore(sla, coreNetworkClient.NetworkConfig{NetworkName: "databox-system-net", DNS: cm.DATABOX_DNS_IP})
-	cm.addPermissionsFromSla(sla)
+	cm.launchStore("core-store", "container-manager-core-store", coreNetworkClient.NetworkConfig{NetworkName: "databox-system-net", DNS: cm.DATABOX_DNS_IP})
+	cm.addPermissionsFromSLA(sla)
 
 	return "tcp://container-manager-core-store:5555"
 }
 
-func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
-
-	//start the container
-	switch sla.DataboxType {
-	case databoxTypes.DataboxTypeApp:
-		cm.launchApp(sla)
-	case databoxTypes.DataboxTypeDriver:
-		cm.launchDriver(sla)
-	}
-
-	return nil
-}
-
-func (cm ContainerManager) launchDriver(sla databoxTypes.SLA) {
+func (cm ContainerManager) getDriverConfig(sla databoxTypes.SLA, localContainerName string, netConf coreNetworkClient.NetworkConfig) (swarm.ServiceSpec, types.ServiceCreateOptions, []string) {
 
 	registry := "databoxsystems/" //TODO this needs to be set from the SLA?
-
-	localContainerName := sla.Name + cm.ARCH
-
-	//set up the networks.
-	netConf := cm.CoreNetworkClient.PreConfig(localContainerName, sla)
 
 	service := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
@@ -140,7 +270,7 @@ func (cm ContainerManager) launchDriver(sla databoxTypes.SLA) {
 					"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080",
 					"DATABOX_LOCAL_NAME=" + localContainerName,
 				},
-				Secrets: cm.addSecrets(localContainerName, sla.DataboxType),
+				Secrets: cm.genorateSecrets(localContainerName, sla.DataboxType),
 				DNSConfig: &swarm.DNSConfig{
 					Nameservers: []string{netConf.DNS},
 				},
@@ -155,31 +285,12 @@ func (cm ContainerManager) launchDriver(sla databoxTypes.SLA) {
 
 	serviceOptions := types.ServiceCreateOptions{}
 
-	storeName := cm.launchStore(sla, netConf)
-
-	service.TaskTemplate.ContainerSpec.Env = append(service.TaskTemplate.ContainerSpec.Env,
-		"DATABOX_ZMQ_ENDPOINT=tcp://"+storeName+":5555")
-	service.TaskTemplate.ContainerSpec.Env = append(service.TaskTemplate.ContainerSpec.Env,
-		"DATABOX_ZMQ_DEALER_ENDPOINT=tcp://"+storeName+":5556")
-
-	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
-	if err != nil {
-		log.Err("[launchDriver] Error launching " + localContainerName + " " + err.Error())
-	}
-
-	cm.CoreNetworkClient.ConnectEndpoints(localContainerName, []string{"arbiter", storeName})
-
-	cm.addPermissionsFromSla(sla)
+	return service, serviceOptions, []string{"arbiter"}
 }
 
-func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
+func (cm ContainerManager) getAppConfig(sla databoxTypes.SLA, localContainerName string, netConf coreNetworkClient.NetworkConfig) (swarm.ServiceSpec, types.ServiceCreateOptions, []string) {
 
 	registry := "databoxsystems/" //TODO this needs to be set from the SLA?
-
-	localContainerName := sla.Name + cm.ARCH
-
-	//set up the networks.
-	netConf := cm.CoreNetworkClient.PreConfig(localContainerName, sla)
 
 	service := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
@@ -195,7 +306,7 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 					"DATABOX_LOCAL_NAME=" + localContainerName,
 					"DATABOX_EXPORT_SERVICE_ENDPOINT=https://export-service:8080",
 				},
-				Secrets: cm.addSecrets(localContainerName, sla.DataboxType),
+				Secrets: cm.genorateSecrets(localContainerName, sla.DataboxType),
 				DNSConfig: &swarm.DNSConfig{
 					Nameservers: []string{netConf.DNS},
 				},
@@ -224,47 +335,20 @@ func (cm ContainerManager) launchApp(sla databoxTypes.SLA) {
 		requiredNetworks[storeName] = storeName
 	}
 
-	//launch a store if required
-	if sla.ResourceRequirements.Store != "" {
-		storeName := cm.launchStore(sla, netConf)
-
-		service.TaskTemplate.ContainerSpec.Env = append(service.TaskTemplate.ContainerSpec.Env,
-			"DATABOX_ZMQ_ENDPOINT=tcp://"+storeName+":5555")
-		service.TaskTemplate.ContainerSpec.Env = append(service.TaskTemplate.ContainerSpec.Env,
-			"DATABOX_ZMQ_DEALER_ENDPOINT=tcp://"+storeName+":5556")
-
-		requiredNetworks[storeName] = storeName
-
-	}
-
 	//connect to networks
+	networksToConnect := []string{}
 	if len(requiredNetworks) > 0 {
-		networksToConnect := []string{}
 		for store := range requiredNetworks {
 			networksToConnect = append(networksToConnect, store)
 		}
-		fmt.Println("networksToConnect", networksToConnect)
-		cm.CoreNetworkClient.ConnectEndpoints(localContainerName, networksToConnect)
 	}
 
-	cm.addPermissionsFromSla(sla)
-
-	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
-	if err != nil {
-		log.Err("[launchApp] Error launching " + localContainerName + " " + err.Error())
-	}
-
+	return service, serviceOptions, networksToConnect
 }
 
-func (cm ContainerManager) launchStore(sla databoxTypes.SLA, netConf coreNetworkClient.NetworkConfig) string {
+func (cm ContainerManager) launchStore(requiredStore string, requiredStoreName string, netConf coreNetworkClient.NetworkConfig) string {
 
 	registry := "databoxsystems/" //TODO this needs to be set from the SLA?
-
-	requiredStore := sla.ResourceRequirements.Store
-
-	//TODO check store is supported!!
-
-	requiredStoreName := sla.Name + "-" + requiredStore + cm.ARCH
 
 	service := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
@@ -278,7 +362,7 @@ func (cm ContainerManager) launchStore(sla databoxTypes.SLA, netConf coreNetwork
 					"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080",
 					"DATABOX_LOCAL_NAME=" + requiredStoreName,
 				},
-				Secrets: cm.addSecrets(requiredStoreName, databoxTypes.DataboxType("store")),
+				Secrets: cm.genorateSecrets(requiredStoreName, databoxTypes.DataboxType("store")),
 				DNSConfig: &swarm.DNSConfig{
 					Nameservers: []string{netConf.DNS},
 				},
@@ -309,30 +393,31 @@ func (cm ContainerManager) launchStore(sla databoxTypes.SLA, netConf coreNetwork
 	return storeName
 }
 
-func (cm ContainerManager) addSecrets(containerName string, databoxType databoxTypes.DataboxType) []*swarm.SecretReference {
-
-	createSecret := func(name string, data []byte, filename string) *swarm.SecretReference {
-		secret := swarm.SecretSpec{
-			Annotations: swarm.Annotations{
-				Name: name,
-			},
-			Data: data,
-		}
-		secretCreateResponse, err := cm.cli.SecretCreate(context.Background(), secret)
-		if err != nil {
-			log.Err("addSecrets createSecret " + err.Error())
-		}
-		return &swarm.SecretReference{
-			SecretID:   secretCreateResponse.ID,
-			SecretName: name,
-			File: &swarm.SecretReferenceFileTarget{
-				Name: filename,
-				UID:  "0",
-				GID:  "0",
-				Mode: 0444,
-			},
-		}
+func (cm ContainerManager) createSecret(name string, data []byte, filename string) *swarm.SecretReference {
+	secret := swarm.SecretSpec{
+		Annotations: swarm.Annotations{
+			Name: name,
+		},
+		Data: data,
 	}
+	secretCreateResponse, err := cm.cli.SecretCreate(context.Background(), secret)
+	if err != nil {
+		log.Err("addSecrets createSecret " + err.Error())
+	}
+	return &swarm.SecretReference{
+		SecretID:   secretCreateResponse.ID,
+		SecretName: name,
+		File: &swarm.SecretReferenceFileTarget{
+			Name: filename,
+			UID:  "0",
+			GID:  "0",
+			Mode: 0444,
+		},
+	}
+}
+
+// genorateSecrets create if required all the secrets passed to the databox app drivers and stores
+func (cm ContainerManager) genorateSecrets(containerName string, databoxType databoxTypes.DataboxType) []*swarm.SecretReference {
 
 	secrets := []*swarm.SecretReference{}
 
@@ -364,11 +449,11 @@ func (cm ContainerManager) addSecrets(containerName string, databoxType databoxT
 		[]string{"127.0.0.1"},
 		[]string{containerName},
 	)
-	secrets = append(secrets, createSecret(strings.ToUpper(containerName)+".pem", cert, "DATABOX.pem"))
+	secrets = append(secrets, cm.createSecret(strings.ToUpper(containerName)+".pem", cert, "DATABOX.pem"))
 
 	rawToken := certificateGenerator.GenerateArbiterToken()
 	b64TokenString := b64.StdEncoding.EncodeToString(rawToken)
-	secrets = append(secrets, createSecret(strings.ToUpper(containerName)+"_KEY", rawToken, "ARBITER_TOKEN"))
+	secrets = append(secrets, cm.createSecret(strings.ToUpper(containerName)+"_KEY", rawToken, "ARBITER_TOKEN"))
 
 	//update the arbiter with the containers token
 	log.Debug("addSecrets UpdateArbiter " + containerName + " " + b64TokenString + " " + string(databoxType))
@@ -395,7 +480,7 @@ func (cm ContainerManager) addSecrets(containerName string, databoxType databoxT
 	return secrets
 }
 
-func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
+func (cm ContainerManager) addPermissionsFromSLA(sla databoxTypes.SLA) {
 
 	var err error
 
@@ -513,7 +598,7 @@ func (cm ContainerManager) addPermissionsFromSla(sla databoxTypes.SLA) {
 }
 
 func (cm ContainerManager) addPermission(name string, target string, path string, method string, caveats []string) error {
-	//TODO move this to the arbiterClient
+
 	newPermission := arbiterClient.ContainerPermissions{
 		Name: name,
 		Route: arbiterClient.Route{
@@ -526,96 +611,4 @@ func (cm ContainerManager) addPermission(name string, target string, path string
 
 	return cm.ArbiterClient.GrantContainerPermissions(newPermission)
 
-}
-
-func (cm ContainerManager) Restart(name string) error {
-	filters := filters.NewArgs()
-	filters.Add("label", "com.docker.swarm.service.name="+name)
-
-	contList, _ := cm.cli.ContainerList(context.Background(),
-		types.ContainerListOptions{
-			Filters: filters,
-		})
-	if len(contList) < 1 {
-		return errors.New("Service " + name + " not running")
-	}
-
-	//Stash the old container IP
-	oldIP := ""
-	for netName := range contList[0].NetworkSettings.Networks {
-		serviceName := strings.Replace(name, "-core-store", "", 1)
-		if strings.Contains(netName, serviceName) {
-			oldIP = contList[0].NetworkSettings.Networks[netName].IPAMConfig.IPv4Address
-		}
-	}
-
-	//Stop the container then the service will start a new one
-	err := cm.cli.ContainerRemove(context.Background(), contList[0].ID, types.ContainerRemoveOptions{Force: true})
-	if err != nil {
-		return errors.New("Cannot remove " + name + " " + err.Error())
-	}
-
-	//wait for the restarted container to start
-	var newContList []types.Container
-	loopCount := 0
-	for {
-
-		newContList, _ = cm.cli.ContainerList(context.Background(),
-			types.ContainerListOptions{
-				Filters: filters,
-			})
-
-		if len(newContList) < 1 {
-			time.Sleep(time.Second)
-			loopCount++
-			if loopCount > 10 {
-				return errors.New("Service has not restarted after 10 seconds !! Could not update corenetwork IP")
-			}
-			continue
-		}
-
-		break
-	}
-
-	//found restarted container !!!
-	//Stash the new container IP
-	newIP := ""
-	for netName := range newContList[0].NetworkSettings.Networks {
-		serviceName := strings.Replace(name, "-core-store", "", 1)
-		if strings.Contains(netName, serviceName) {
-			newIP = newContList[0].NetworkSettings.Networks[netName].IPAMConfig.IPv4Address
-			log.Debug("IP found " + newIP)
-		}
-	}
-
-	return cm.CoreNetworkClient.ServiceRestart(name, oldIP, newIP)
-}
-
-func (cm ContainerManager) Uninstall(name string) error {
-	serFilters := filters.NewArgs()
-	serFilters.Add("name", name)
-
-	serList, _ := cm.cli.ServiceList(context.Background(),
-		types.ServiceListOptions{
-			Filters: serFilters,
-		})
-	if len(serList) < 1 {
-		return errors.New("Service " + name + " not running")
-	}
-
-	err := cm.cli.ServiceRemove(context.Background(), serList[0].ID)
-
-	//remove secrets
-	secFilters := filters.NewArgs()
-	secFilters.Add("name", strings.ToUpper(name)+".pem")
-	secFilters.Add("name", strings.ToUpper(name)+"_KEY")
-
-	secretList, err := cm.cli.SecretList(context.Background(), types.SecretListOptions{
-		Filters: secFilters,
-	})
-	for _, s := range secretList {
-		cm.cli.SecretRemove(context.Background(), s.ID)
-	}
-
-	return err
 }
