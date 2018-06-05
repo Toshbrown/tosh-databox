@@ -3,9 +3,13 @@ package databoxLoader
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -17,18 +21,19 @@ import (
 )
 
 type databoxLoader struct {
-	cli                   *client.Client
-	debug                 bool
-	registry              string
-	version               string
-	path                  string
-	host_ip               string
-	cmImage               string
-	arbiterImage          string
-	coreNetworkImage      string
-	coreNetworkRelayImage string
-	appServerImage        string
-	exportServiceImage    string
+	cli                           *client.Client
+	debug                         bool
+	registry                      string
+	version                       string
+	path                          string
+	host_ip                       string
+	cmImage                       string
+	arbiterImage                  string
+	coreNetworkImage              string
+	coreNetworkRelayImage         string
+	appServerImage                string
+	exportServiceImage            string
+	reGenerateDataboxCertificates bool
 }
 
 //TODO dose this need to be in a module or just part of the main app?
@@ -46,7 +51,7 @@ func New(version string) databoxLoader {
 	}
 }
 
-func (d *databoxLoader) Start(ip, cmImage, arbiterImage, coreNetworkImage, coreNetworkRelayImage, appServerImage, exportServiceImage string) {
+func (d *databoxLoader) Start(ip, cmImage, arbiterImage, coreNetworkImage, coreNetworkRelayImage, appServerImage, exportServiceImage string, reGenerateDataboxCertificates bool) {
 
 	_, err := d.cli.SwarmInit(context.Background(), swarm.InitRequest{
 		ListenAddr:    "127.0.0.1",
@@ -67,6 +72,7 @@ func (d *databoxLoader) Start(ip, cmImage, arbiterImage, coreNetworkImage, coreN
 	d.coreNetworkRelayImage = coreNetworkRelayImage
 	d.appServerImage = appServerImage
 	d.exportServiceImage = exportServiceImage
+	d.reGenerateDataboxCertificates = reGenerateDataboxCertificates
 
 	d.createContainerManager()
 
@@ -143,6 +149,8 @@ func (d *databoxLoader) createContainerManager() {
 					"DATABOX_CORE_NETWORK_RELAY_IMAGE=" + d.coreNetworkRelayImage,
 					"DATABOX_APP_SERVER_IMAGE=" + d.appServerImage,
 					"DATABOX_EXPORT_SERVICE_IMAGE=" + d.exportServiceImage,
+					"DATABOX_REGENERATE_CERTIFICATES=" + strconv.FormatBool(d.reGenerateDataboxCertificates),
+					"DATABOX_EXTERNAL_IP=" + getExternalIP(),
 				},
 				Mounts: []mount.Mount{
 					mount.Mount{
@@ -210,4 +218,17 @@ func (d *databoxLoader) removeContainer(name string) {
 		rerr := d.cli.ContainerRemove(context.Background(), containers[0].ID, types.ContainerRemoveOptions{Force: true})
 		log.ChkErr(rerr)
 	}
+}
+
+func getExternalIP() string {
+	var netClient = &http.Client{
+		Timeout: time.Second * 3,
+	}
+	response, err := netClient.Get("http://whatismyip.akamai.com/")
+	log.ChkErrFatal(err)
+	ip, err := ioutil.ReadAll(response.Body)
+	log.ChkErrFatal(err)
+	response.Body.Close()
+	log.Debug("External IP found " + string(ip))
+	return string(ip)
 }

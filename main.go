@@ -26,6 +26,7 @@ func main() {
 	coreNetworkRelay := startCmd.String("core-network-relay", "databoxsystems/core-network-relay", "Override core-network-relay image")
 	appServerImage := startCmd.String("app-server", "databoxsystems/app-server", "Override local app-server image")
 	exportServerImage := startCmd.String("export-service", "databoxsystems/export-service", "Override export-service image")
+	ReGenerateDataboxCertificates := startCmd.Bool("regenerateCerts", false, "Fore databox to regenerate the databox root and certificate")
 
 	stopCmd := flag.NewFlagSet("stop", flag.ExitOnError)
 	logsCmd := flag.NewFlagSet("logs", flag.ExitOnError)
@@ -59,7 +60,8 @@ func main() {
 			*coreNetworkImage,
 			*coreNetworkRelay,
 			*appServerImage,
-			*exportServerImage)
+			*exportServerImage,
+			*ReGenerateDataboxCertificates)
 	case "stop":
 		log.Info("Stoping Databox ...")
 		stopCmd.Parse(os.Args[2:])
@@ -79,18 +81,9 @@ func displayUsage() {
 		databox [cmd]
 		Usage:
 			start - start databox
-				Options:
-					--swarm-ip The external IP to use to advertise the swarm
-					--release Databox version to start, can uses tagged versions or latest
-					--cm Override container-manager image
-					--arbiter Override arbiter image
-					--core-network Override container-manager image
-					--core-network-relay Override core-network-relay image
-					--app-server Override local app-server image
-					--export-service Override export-service image
-
 			stop - stop databox
-
 			logs - view databox logs
+
+		Use databox [cmd] help to see more options
 		`)
 }

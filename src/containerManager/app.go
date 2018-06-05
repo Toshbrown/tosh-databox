@@ -5,23 +5,22 @@ import (
 	containerManger "containerManager/containerManager"
 	databoxStart "containerManager/databoxStart"
 	log "databoxlog"
-	"flag"
 	"fmt"
 	"os"
+	"strconv"
 )
 
 func main() {
 
-	//TODO parse CMD input for stop and dev mode etc
+	DOCKER_API_VERSION := "1.35"
+	os.Setenv("DOCKER_API_VERSION", DOCKER_API_VERSION)
 
-	DOCKER_API_VERSION := flag.String("API", "1.35", "Docker API version ")
-	IP := flag.String("ip", "127.0.0.1", "The external IP to use")
-	//DEV              := flag.Bool("dev", false, "Use this to enable dev mode")
-	flag.Parse()
+	//get the external IP of the databox
+	externalIP := os.Getenv("DATABOX_EXTERNAL_IP")
+	ReGenerateDataboxCertificates, _ := strconv.ParseBool(os.Getenv("DATABOX_REGENERATE_CERTIFICATES"))
+	IP := os.Getenv("DATABOX_HOST_IP")
 
-	os.Setenv("DOCKER_API_VERSION", *DOCKER_API_VERSION)
-
-	generateDataboxCertificates(*IP)
+	generateDataboxCertificates(IP, externalIP, ReGenerateDataboxCertificates)
 	generateArbiterTokens()
 
 	databox := databoxStart.New()
@@ -62,7 +61,13 @@ func generateArbiterTokens() {
 	}
 }
 
-func generateDataboxCertificates(IP string) {
+func generateDataboxCertificates(IP string, externalIP string, force bool) {
+
+	if force == true {
+		log.Debug("[generateDataboxCertificates] Forced regoration of Databox certificates")
+		os.RemoveAll(certsBasePath)
+	}
+
 	rootCAPath := certsBasePath + "/containerManager.crt"
 
 	if _, err := os.Stat(certsBasePath); err != nil {
@@ -73,8 +78,19 @@ func generateDataboxCertificates(IP string) {
 		certificateGenerator.GenRootCA(rootCAPath)
 	}
 
+	//container-manager needs extra information
+	if _, err := os.Stat(certsBasePath + "/container-manager.pem"); err != nil {
+		log.Debug("[generateDataboxCertificates] making cert for container-manager")
+		certificateGenerator.GenCertToFile(
+			rootCAPath,
+			"container-manager",
+			[]string{IP, externalIP, "127.0.0.1"},
+			[]string{"container-manager", "localhost"},
+			certsBasePath+"/container-manager.pem",
+		)
+	}
+
 	components := []string{
-		"container-manager",
 		"databox-network",
 		"export-service",
 		"arbiter",
@@ -82,16 +98,16 @@ func generateDataboxCertificates(IP string) {
 	}
 
 	for _, name := range components {
-		fmt.Println(name)
 		if _, err := os.Stat(certsBasePath + "/" + name + ".pem"); err == nil {
 			continue
 		}
+		log.Debug("[generateDataboxCertificates] making cert for " + name)
 		log.Info("Making cert " + certsBasePath + "/" + name + ".pem")
 		certificateGenerator.GenCertToFile(
 			rootCAPath,
 			name,
-			[]string{IP, "127.0.0.1"},
-			[]string{name, "localhost"},
+			[]string{},
+			[]string{name},
 			certsBasePath+"/"+name+".pem",
 		)
 	}
