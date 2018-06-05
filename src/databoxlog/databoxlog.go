@@ -106,7 +106,13 @@ func ChkErrFatal(err error) {
 	if err == nil {
 		return
 	}
-	log.Fatal("[ERROR]" + err.Error())
+	log.SetFlags(log.Ldate | log.Ltime)
+	_, file, line, ok := runtime.Caller(3)
+	if !ok {
+		file = "???"
+		line = 0
+	}
+	log.Fatal("[ERROR] " + file + " L" + strconv.Itoa(line) + ":" + err.Error())
 }
 
 func Info(msg string) {
