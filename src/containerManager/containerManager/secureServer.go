@@ -7,16 +7,14 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	//databox "github.com/me-box/lib-go-databox"
-
 	"lib-go-databox/coreStoreClient"
 	databoxTypes "lib-go-databox/types"
 
-	"databoxAuthMiddleware"
+	"containerManager/databoxAuthMiddleware"
 
 	log "databoxlog"
 
-	"databoxProxyMiddleware"
+	"containerManager/databoxProxyMiddleware"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"

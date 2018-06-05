@@ -46,7 +46,7 @@ type Databox struct {
 	DontPull                      bool
 }
 
-func NewDatabox() Databox {
+func New() Databox {
 	cli, _ := client.NewEnvClient()
 
 	return Databox{

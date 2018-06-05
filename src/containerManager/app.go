@@ -1,8 +1,9 @@
 package main
 
 import (
-	certificateGenerator "certificateGenerator"
-	containerManager "containerManager"
+	certificateGenerator "containerManager/certificateGenerator"
+	containerManger "containerManager/containerManager"
+	databoxStart "containerManager/databoxStart"
 	log "databoxlog"
 	"flag"
 	"fmt"
@@ -23,14 +24,14 @@ func main() {
 	generateDataboxCertificates(*IP)
 	generateArbiterTokens()
 
-	databox := containerManager.NewDatabox()
+	databox := databoxStart.New()
 	rootCASecretID, zmqPublic, zmqPrivate := databox.Start()
 
 	fmt.Println("key IDs :: ", rootCASecretID, zmqPublic, zmqPrivate)
-	cm := containerManager.NewContainerManager(rootCASecretID, zmqPublic, zmqPrivate)
+	cm := containerManger.New(rootCASecretID, zmqPublic, zmqPrivate)
 
-	go containerManager.ServeInsecure()
-	go containerManager.ServeSecure(cm)
+	go containerManger.ServeInsecure()
+	go containerManger.ServeSecure(cm)
 
 	fmt.Println("CM Ready and waiting")
 

@@ -12,7 +12,7 @@ import (
 	"strings"
 	"time"
 
-	"certificateGenerator"
+	"containerManager/certificateGenerator"
 	"lib-go-databox/arbiterClient"
 	"lib-go-databox/coreNetworkClient"
 	"lib-go-databox/databoxRequest"
@@ -45,8 +45,8 @@ type ContainerManager struct {
 	Logger             *log.Logger
 }
 
-// NewContainerManager returns a configured ContainerManager
-func NewContainerManager(rootCASecretId string, zmqPublicId string, zmqPrivateId string) ContainerManager {
+// New returns a configured ContainerManager
+func New(rootCASecretId string, zmqPublicId string, zmqPrivateId string) ContainerManager {
 
 	cli, _ := client.NewEnvClient()
 
