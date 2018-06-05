@@ -26,6 +26,8 @@ up-to-date as of 0.4.0
 
 # Getting it working
 
+sudo apt install libzmq3-dev - or brew install zmq
+
 go get github.com/toshbrown/tosh-databox
 
 cd ~/go/src/github.com/toshbrown/tosh-databox
