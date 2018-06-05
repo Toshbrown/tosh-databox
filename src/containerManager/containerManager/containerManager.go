@@ -145,6 +145,7 @@ func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
 	return nil
 }
 
+// Restart will restart the databox component, app or driver by service name
 func (cm ContainerManager) Restart(name string) error {
 	filters := filters.NewArgs()
 	filters.Add("label", "com.docker.swarm.service.name="+name)
@@ -208,6 +209,7 @@ func (cm ContainerManager) Restart(name string) error {
 	return cm.CoreNetworkClient.ServiceRestart(name, oldIP, newIP)
 }
 
+// Uninstall will restart the databox app or driver by service name
 func (cm ContainerManager) Uninstall(name string) error {
 	serFilters := filters.NewArgs()
 	serFilters.Add("name", name)

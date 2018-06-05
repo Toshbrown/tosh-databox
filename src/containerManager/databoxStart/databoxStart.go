@@ -43,7 +43,6 @@ type Databox struct {
 	DATABOX_DNS_IP                string
 	DATABOX_PEM                   string
 	DATABOX_NETWORK_KEY           string
-	DontPull                      bool
 }
 
 func New() Databox {
@@ -56,13 +55,12 @@ func New() Databox {
 		registry:              "databoxsystems",
 		version:               os.Getenv("DATABOX_VERSION"),
 		hostPath:              os.Getenv("DATABOX_HOST_PATH"),
-		hostIP:                os.Getenv("DATABOX_ARBITER_IMAGE"),
-		arbiterImage:          os.Getenv("DATABOX_HOST_IP"),
+		hostIP:                os.Getenv("DATABOX_HOST_IP"),
+		arbiterImage:          os.Getenv("DATABOX_ARBITER_IMAGE"),
 		coreNetworkImage:      os.Getenv("DATABOX_CORE_NETWORK_IMAGE"),
 		coreNetworkRelayImage: os.Getenv("DATABOX_CORE_NETWORK_RELAY_IMAGE"),
 		appServerImage:        os.Getenv("DATABOX_APP_SERVER_IMAGE"),
 		exportServiceImage:    os.Getenv("DATABOX_EXPORT_SERVICE_IMAGE"),
-		DontPull:              true, //dont pull images for now
 	}
 }
 
@@ -328,7 +326,7 @@ func (d *Databox) startAppServer() {
 	containerName := "app-server"
 
 	config := &container.Config{
-		Image: d.appServerImage + ":" + ":latest",
+		Image: d.appServerImage + ":latest", // + d.version,
 		Env:   []string{"LOCAL_MODE=1", "PORT=8181"},
 		ExposedPorts: nat.PortSet{
 			"8181/tcp": {},

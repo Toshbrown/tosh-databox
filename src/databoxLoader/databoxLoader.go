@@ -129,7 +129,7 @@ func (d *databoxLoader) createContainerManager() {
 	service := swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:  d.cmImage,
+				Image:  d.cmImage + ":" + d.version,
 				Labels: map[string]string{"databox.type": "container-manager"},
 				Env: []string{
 					"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080",
@@ -142,6 +142,7 @@ func (d *databoxLoader) createContainerManager() {
 					"DATABOX_CORE_NETWORK_IMAGE=" + d.coreNetworkImage,
 					"DATABOX_CORE_NETWORK_RELAY_IMAGE=" + d.coreNetworkRelayImage,
 					"DATABOX_APP_SERVER_IMAGE=" + d.appServerImage,
+					"DATABOX_EXPORT_SERVICE_IMAGE=" + d.exportServiceImage,
 				},
 				Mounts: []mount.Mount{
 					mount.Mount{
