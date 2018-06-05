@@ -281,6 +281,9 @@ func (cm ContainerManager) getDriverConfig(sla databoxTypes.SLA, localContainerN
 				Target: netConf.NetworkName,
 			}},
 		},
+		EndpointSpec: &swarm.EndpointSpec{
+			Mode: swarm.ResolutionModeDNSRR,
+		},
 	}
 
 	service.Name = localContainerName
@@ -317,13 +320,16 @@ func (cm ContainerManager) getAppConfig(sla databoxTypes.SLA, localContainerName
 				Target: netConf.NetworkName,
 			}},
 		},
+		EndpointSpec: &swarm.EndpointSpec{
+			Mode: swarm.ResolutionModeDNSRR,
+		},
 	}
 
 	service.Name = localContainerName
 
 	serviceOptions := types.ServiceCreateOptions{}
 
-	//add datasource info to the env vars and create a list networks this app needs to access assess
+	//add datasource info to the env vars and create a list networks this app needs to access
 	requiredNetworks := map[string]string{"arbiter": "arbiter", "export-service": "export-service"}
 
 	for _, ds := range sla.Datasources {
@@ -379,6 +385,9 @@ func (cm ContainerManager) launchStore(requiredStore string, requiredStoreName s
 			Networks: []swarm.NetworkAttachmentConfig{swarm.NetworkAttachmentConfig{
 				Target: netConf.NetworkName,
 			}},
+		},
+		EndpointSpec: &swarm.EndpointSpec{
+			Mode: swarm.ResolutionModeDNSRR,
 		},
 	}
 
