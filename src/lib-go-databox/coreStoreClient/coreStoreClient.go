@@ -81,7 +81,7 @@ func (csc *CoreStoreClient) RegisterDatasource(metadata databoxTypes.DataSourceM
 	if err != nil {
 		return err
 	}
-	hypercatJSON, err := csc.dataSourceMetadataToHypercat(metadata, csc.ZEndpoint+"/ts/")
+	hypercatJSON, err := csc.dataSourceMetadataToHypercat(metadata, csc.ZEndpoint)
 
 	writeErr := csc.ZestC.Post(string(token), path, hypercatJSON, "JSON")
 	if writeErr != nil {
@@ -111,7 +111,7 @@ func (csc *CoreStoreClient) dataSourceMetadataToHypercat(metadata databoxTypes.D
 	cat.ItemMetadata = append(cat.ItemMetadata, databoxTypes.RelValPair{Rel: "urn:X-databox:rels:hasVendor", Val: metadata.Vendor})
 	cat.ItemMetadata = append(cat.ItemMetadata, databoxTypes.RelValPair{Rel: "urn:X-databox:rels:hasType", Val: metadata.DataSourceType})
 	cat.ItemMetadata = append(cat.ItemMetadata, databoxTypes.RelValPair{Rel: "urn:X-databox:rels:hasDatasourceid", Val: metadata.DataSourceID})
-	cat.ItemMetadata = append(cat.ItemMetadata, databoxTypes.RelValPair{Rel: "urn:X-databox:rels:hasStoreType", Val: metadata.StoreType})
+	cat.ItemMetadata = append(cat.ItemMetadata, databoxTypes.RelValPair{Rel: "urn:X-databox:rels:hasStoreType", Val: string(metadata.StoreType)})
 
 	if metadata.IsActuator {
 		cat.ItemMetadata = append(cat.ItemMetadata, databoxTypes.RelValPairBool{Rel: "urn:X-databox:rels:isActuator", Val: true})
@@ -125,7 +125,7 @@ func (csc *CoreStoreClient) dataSourceMetadataToHypercat(metadata databoxTypes.D
 		cat.ItemMetadata = append(cat.ItemMetadata, databoxTypes.RelValPair{Rel: "urn:X-databox:rels:hasUnit", Val: metadata.Unit})
 	}
 
-	cat.Href = endPoint + metadata.DataSourceID
+	cat.Href = endPoint + "/" + string(metadata.StoreType) + "/" + metadata.DataSourceID
 
 	return json.Marshal(cat)
 
@@ -165,7 +165,22 @@ func (csc *CoreStoreClient) HypercatToDataSourceMetadata(hypercatDataSourceDescr
 			continue
 		}
 		if vals["rel"].(string) == "urn:X-databox:rels:hasStoreType" {
-			dm.StoreType = vals["val"].(string)
+			st := vals["val"].(string)
+			switch st {
+			case "kv":
+				dm.StoreType = databoxTypes.StoreTypeKV
+				break
+			case "ts":
+				dm.StoreType = databoxTypes.StoreTypeTS
+				break
+			case "ts/blob":
+				dm.StoreType = databoxTypes.StoreTypeTSBlob
+				break
+			default:
+				//some old SLAs will not have this most use TSBlob
+				//TODO CHECK THIS AND BE NOISY
+				dm.StoreType = databoxTypes.StoreTypeTSBlob
+			}
 			continue
 		}
 		if vals["rel"].(string) == "urn:X-databox:rels:isActuator" {
@@ -198,4 +213,52 @@ func GetStoreURLFromDsHref(href string) (string, error) {
 
 	return u.Scheme + "://" + u.Host, nil
 
+}
+
+func (csc *CoreStoreClient) write(path string, payload []byte) error {
+
+	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "POST")
+	if err != nil {
+		return err
+	}
+
+	err = csc.ZestC.Post(string(token), path, payload, "JSON")
+	if err != nil {
+		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "POST")
+		return errors.New("Error writing: " + err.Error())
+	}
+
+	return nil
+}
+
+func (csc *CoreStoreClient) read(path string) ([]byte, error) {
+
+	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "GET")
+	if err != nil {
+		return []byte(""), err
+	}
+
+	resp, getErr := csc.ZestC.Get(string(token), path, "JSON")
+	if getErr != nil {
+		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "GET")
+		return []byte(""), errors.New("Error getting latest data: " + getErr.Error())
+	}
+
+	return resp, nil
+}
+
+func (csc *CoreStoreClient) observe(path string) (<-chan []byte, error) {
+
+	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "GET")
+	if err != nil {
+		return nil, err
+	}
+
+	payloadChan, getErr := csc.ZestC.Observe(string(token), path, "JSON", 0)
+	if getErr != nil {
+		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "GET")
+		return nil, errors.New("Error observing: " + getErr.Error())
+	}
+
+	return payloadChan, err
 }

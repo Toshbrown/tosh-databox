@@ -34,7 +34,7 @@ type ContainerManager struct {
 	cli                *client.Client
 	ArbiterClient      arbiterClient.ArbiterClient
 	CoreNetworkClient  coreNetworkClient.CoreNetworkClient
-	CoreStoreClient    coreStoreClient.CoreStoreClient
+	CoreStoreClient    *coreStoreClient.CoreStoreClient
 	Request            *http.Client
 	DATABOX_DNS_IP     string
 	DATABOX_ROOT_CA_ID string
@@ -91,8 +91,8 @@ func (cm ContainerManager) Start() {
 	log.Info("CM Ready and waiting")
 
 	//setup the cm to log to the store
-	csc := coreStoreClient.New(cm.Request, &cm.ArbiterClient, "/run/secrets/ZMQ_PUBLIC_KEY", cm.cmStoreURL, false)
-	l, err := log.New(csc)
+	cm.CoreStoreClient = coreStoreClient.New(cm.Request, &cm.ArbiterClient, "/run/secrets/ZMQ_PUBLIC_KEY", cm.cmStoreURL, false)
+	l, err := log.New(cm.CoreStoreClient)
 	if err != nil {
 		log.Err("Filed to set up logging to store. " + err.Error())
 	}
