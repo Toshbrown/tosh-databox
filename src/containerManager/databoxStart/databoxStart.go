@@ -72,7 +72,7 @@ func (d *Databox) Start() (string, string, string) {
 
 	//Create global secrets that are used in more than one container
 	fmt.Println("Creating secrets")
-	d.DATABOX_ROOT_CA_ID = d.createSecretFromFile("DATABOX_ROOT_CA", "./certs/containerManager.crt")
+	d.DATABOX_ROOT_CA_ID = d.createSecretFromFile("DATABOX_ROOT_CA", "./certs/containerManagerPub.crt")
 	d.CM_KEY_ID = d.createSecretFromFile("CM_KEY", "./certs/arbiterToken-container-manager")
 
 	d.DATABOX_ARBITER_ID = d.createSecretFromFile("DATABOX_ARBITER.pem", "./certs/arbiter.pem")

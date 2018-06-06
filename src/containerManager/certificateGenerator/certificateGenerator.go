@@ -98,8 +98,8 @@ func GenCertToFile(CAFilePath string, commonName string, ips []string, hostNames
 
 }
 
-func GenRootCA(CAFilePath string) {
-
+func GenRootCA(CAFilePathPriv string, CAFilePathPub string) {
+	log.Info("GenRootCA called")
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
 	log.ChkErrFatal(err)
 
@@ -130,13 +130,18 @@ func GenRootCA(CAFilePath string) {
 	derBytes, derErr := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
 	log.ChkErrFatal(derErr)
 
-	certOut, err := os.Create(CAFilePath)
+	certOutPub, err := os.Create(CAFilePathPub)
 	log.ChkErrFatal(err)
+	pem.Encode(certOutPub, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	certOutPub.Close()
 
-	pem.Encode(certOut, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	certOutPriv, err := os.Create(CAFilePathPriv)
+	log.ChkErrFatal(err)
+	pem.Encode(certOutPriv, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	b := x509.MarshalPKCS1PrivateKey(priv)
-	pem.Encode(certOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: b})
-	certOut.Close()
+	pem.Encode(certOutPriv, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: b})
+	certOutPriv.Close()
+
 }
 
 func GenerateArbiterToken() []byte {

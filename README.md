@@ -37,7 +37,7 @@ up-to-date as of 0.4.0
 - proxy brakes if http2 upgrade is attempted (curl dose this by default)
 - proxy has no support for websockets
 - trying to installing an app before any stores causes a hang (simple fix need to return an empty array)
-- /run/secrets/DATABOX_ROOT_CA contains the RSA PRIVATE KEY and is passed to all apps and drivers!!!!
+- ~~/run/secrets/DATABOX_ROOT_CA contains the RSA PRIVATE KEY and is passed to all apps and drivers!!!!~~
 
 - password is hard coded
 - need to generate app qr code

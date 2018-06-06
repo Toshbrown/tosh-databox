@@ -69,13 +69,14 @@ func generateDataboxCertificates(IP string, externalIP string, force bool) {
 	}
 
 	rootCAPath := certsBasePath + "/containerManager.crt"
+	rootCAPathPub := certsBasePath + "/containerManagerPub.crt"
 
 	if _, err := os.Stat(certsBasePath); err != nil {
 		os.Mkdir(certsBasePath, 0700)
 	}
 
 	if _, err := os.Stat(rootCAPath); err != nil {
-		certificateGenerator.GenRootCA(rootCAPath)
+		certificateGenerator.GenRootCA(rootCAPath, rootCAPathPub)
 	}
 
 	//container-manager needs extra information
