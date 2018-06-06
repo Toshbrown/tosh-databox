@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -72,12 +73,22 @@ func New(rootCASecretId string, zmqPublicId string, zmqPrivateId string) Contain
 		cm.ARCH = ""
 	}
 
-	//register with core-network
-	cnc.RegisterPrivileged()
+	return cm
+}
 
-	time.Sleep(time.Second * 5)
+func (cm ContainerManager) Start() {
+
+	//register with core-network
+	cm.CoreNetworkClient.RegisterPrivileged()
+
 	//launch the CM store
 	cm.cmStoreURL = cm.launchCMStore()
+
+	//start the webUI and API
+	go ServeInsecure()
+	go ServeSecure(&cm)
+
+	log.Info("CM Ready and waiting")
 
 	//setup the cm to log to the store
 	csc := coreStoreClient.New(cm.Request, &cm.ArbiterClient, "/run/secrets/ZMQ_PUBLIC_KEY", cm.cmStoreURL, false)
@@ -87,8 +98,6 @@ func New(rootCASecretId string, zmqPublicId string, zmqPrivateId string) Contain
 	}
 	cm.Logger = l
 	cm.Logger.Debug("CM logs going to the cm store")
-
-	return cm
 }
 
 // LaunchFromSLA will start a databox app or driver with the reliant stores and grant permissions required as described in the SLA
@@ -174,34 +183,16 @@ func (cm ContainerManager) Restart(name string) error {
 	}
 
 	//wait for the restarted container to start
-	var newContList []types.Container
-	loopCount := 0
-	for {
-
-		newContList, _ = cm.cli.ContainerList(context.Background(),
-			types.ContainerListOptions{
-				Filters: filters,
-			})
-
-		if len(newContList) < 1 {
-			time.Sleep(time.Second)
-			loopCount++
-			if loopCount > 10 {
-				return errors.New("Service has not restarted after 10 seconds !! Could not update corenetwork IP")
-			}
-			continue
-		}
-
-		break
-	}
+	newCont, err := cm.WaitForContainer(name, 10)
+	log.ChkErr(err)
 
 	//found restarted container !!!
 	//Stash the new container IP
 	newIP := ""
-	for netName := range newContList[0].NetworkSettings.Networks {
+	for netName := range newCont.NetworkSettings.Networks {
 		serviceName := strings.Replace(name, "-core-store", "", 1)
 		if strings.Contains(netName, serviceName) {
-			newIP = newContList[0].NetworkSettings.Networks[netName].IPAMConfig.IPv4Address
+			newIP = newCont.NetworkSettings.Networks[netName].IPAMConfig.IPv4Address
 			log.Debug("IP found " + newIP)
 		}
 	}
@@ -239,9 +230,45 @@ func (cm ContainerManager) Uninstall(name string) error {
 	return err
 }
 
+// WaitForContainer will wait for a container to start searching for it by service name.
+// If the container is found within the timeout it will return a docker/api/types.Container and nil
+// otherwise an error will be returned.
+func (cm ContainerManager) WaitForContainer(name string, timeout int) (types.Container, error) {
+	log.Info("Waiting for " + name)
+	filters := filters.NewArgs()
+	filters.Add("label", "com.docker.swarm.service.name="+name)
+
+	//wait for the restarted container to start
+	var contList []types.Container
+	loopCount := 0
+	for {
+
+		contList, _ = cm.cli.ContainerList(context.Background(),
+			types.ContainerListOptions{
+				Filters: filters,
+			})
+
+		if len(contList) > 0 {
+			//found something!!
+			break
+		}
+
+		time.Sleep(time.Second)
+		loopCount++
+		if loopCount > timeout {
+			return types.Container{}, errors.New("Service has not restarted after " + strconv.Itoa(timeout) + " seconds !!")
+		}
+		continue
+
+	}
+
+	return contList[0], nil
+}
+
 // launchCMStore start a core-store the the container manager to store its configuration
 func (cm ContainerManager) launchCMStore() string {
 	//startCMStore
+
 	sla := databoxTypes.SLA{
 		Name:        "container-manager",
 		DataboxType: "Driver",
@@ -251,6 +278,9 @@ func (cm ContainerManager) launchCMStore() string {
 	}
 	cm.launchStore("core-store", "container-manager-core-store", coreNetworkClient.NetworkConfig{NetworkName: "databox-system-net", DNS: cm.DATABOX_DNS_IP})
 	cm.addPermissionsFromSLA(sla)
+
+	_, err := cm.WaitForContainer("container-manager-core-store", 10)
+	log.ChkErr(err)
 
 	return "tcp://container-manager-core-store:5555"
 }

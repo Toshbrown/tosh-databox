@@ -28,11 +28,11 @@ func main() {
 
 	fmt.Println("key IDs :: ", rootCASecretID, zmqPublic, zmqPrivate)
 	cm := containerManger.New(rootCASecretID, zmqPublic, zmqPrivate)
+	_, err := cm.WaitForContainer("arbiter", 10)
+	log.ChkErrFatal(err)
 
-	go containerManger.ServeInsecure()
-	go containerManger.ServeSecure(cm)
-
-	fmt.Println("CM Ready and waiting")
+	//Start the databox cm Uis and do initial configuration
+	cm.Start()
 
 	//Wait for a quit message
 	quit := make(chan int)

@@ -24,7 +24,7 @@ import (
 
 var dboxproxy *databoxProxyMiddleware.DataboxProxyMiddleware
 
-func ServeSecure(cm ContainerManager) {
+func ServeSecure(cm *ContainerManager) {
 
 	//pull required databox components from the ContainerManager
 	cli := cm.cli
