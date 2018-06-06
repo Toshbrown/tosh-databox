@@ -88,11 +88,17 @@ type DataSourceMetadata struct {
 	Vendor         string
 	DataSourceType string
 	DataSourceID   string
-	StoreType      string
+	StoreType      StoreType
 	IsActuator     bool
 	Unit           string
 	Location       string
 }
+
+type StoreType string
+
+const StoreTypeTS = "ts"
+const StoreTypeTSBlob = "ts/blob"
+const StoreTypeKV = "kv"
 
 type RelValPair struct {
 	Rel string `json:"rel"`
