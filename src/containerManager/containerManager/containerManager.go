@@ -44,6 +44,7 @@ type ContainerManager struct {
 	Version            string
 	cmStoreURL         string
 	Logger             *log.Logger
+	Store              *CMStore
 }
 
 // New returns a configured ContainerManager
@@ -98,6 +99,21 @@ func (cm ContainerManager) Start() {
 	}
 	cm.Logger = l
 	cm.Logger.Debug("CM logs going to the cm store")
+
+	//setup the cmStore
+	cm.Store = NewCMStore(cm.CoreStoreClient)
+
+	//clear the saved slas if needed
+	flushSLADB, err := strconv.ParseBool(os.Getenv("DATABOX_FLUSH_SLA_DB"))
+	if flushSLADB && err == nil {
+		log.Info("Clearing SLA database to remove saved apps and drivers")
+		err = cm.Store.ClearSLADatabase()
+		log.ChkErr(err)
+	}
+
+	//Reload and saved drivers and app from the cm store
+	log.Info("Restarting saved apps and drivers")
+	cm.reloadApps()
 }
 
 // LaunchFromSLA will start a databox app or driver with the reliant stores and grant permissions required as described in the SLA
@@ -139,6 +155,9 @@ func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
 		)
 		cm.launchStore(sla.ResourceRequirements.Store, requiredStoreName, netConf)
 		requiredNetworks = append(requiredNetworks, requiredStoreName)
+
+		cm.WaitForContainer(requiredStoreName, 10)
+
 	}
 
 	fmt.Println("networksToConnect", requiredNetworks)
@@ -150,6 +169,10 @@ func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
 	}
 
 	cm.addPermissionsFromSLA(sla)
+
+	//save the sla for persistence over restarts
+	err = cm.Store.SaveSLA(sla)
+	log.ChkErr(err)
 
 	return nil
 }
@@ -227,6 +250,8 @@ func (cm ContainerManager) Uninstall(name string) error {
 		cm.cli.SecretRemove(context.Background(), s.ID)
 	}
 
+	cm.Store.DeleteSLA(name)
+
 	return err
 }
 
@@ -250,6 +275,10 @@ func (cm ContainerManager) WaitForContainer(name string, timeout int) (types.Con
 
 		if len(contList) > 0 {
 			//found something!!
+
+			//give it a bit more time
+			//TODO think about using /status here
+			time.Sleep(time.Second * 2)
 			break
 		}
 
@@ -263,6 +292,29 @@ func (cm ContainerManager) WaitForContainer(name string, timeout int) (types.Con
 	}
 
 	return contList[0], nil
+}
+
+func (cm ContainerManager) reloadApps() {
+
+	slaList, err := cm.Store.GetAllSLAs()
+	log.ChkErr(err)
+	log.Debug("reloadApps slaList len=" + strconv.Itoa(len(slaList)))
+	//launch drivers
+	for _, sla := range slaList {
+		if sla.DataboxType == databoxTypes.DataboxTypeDriver {
+			cm.LaunchFromSLA(sla)
+			dboxproxy.Add(sla.Name)
+		}
+	}
+
+	//launch apps
+	for _, sla := range slaList {
+		if sla.DataboxType == databoxTypes.DataboxTypeApp {
+			cm.LaunchFromSLA(sla)
+			dboxproxy.Add(sla.Name)
+		}
+	}
+
 }
 
 // launchCMStore start a core-store the the container manager to store its configuration
@@ -538,7 +590,7 @@ func (cm ContainerManager) addPermissionsFromSLA(sla databoxTypes.SLA) {
 		}
 		urlsString = urlsString + "\""
 
-		log.Info("Adding Export permissions for " + localContainerName + " on " + urlsString)
+		log.Debug("Adding Export permissions for " + localContainerName + " on " + urlsString)
 
 		err = cm.addPermission(localContainerName, "export-service", "/export/", "POST", []string{urlsString})
 		if err != nil {
@@ -585,26 +637,26 @@ func (cm ContainerManager) addPermissionsFromSLA(sla databoxTypes.SLA) {
 				}
 			}
 			if isActuator == true {
-				log.Info("Adding write permissions for Actuator " + datasourceName + " on " + datasourceEndpoint.Hostname())
+				log.Debug("Adding write permissions for Actuator " + datasourceName + " on " + datasourceEndpoint.Hostname())
 				err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), "/"+datasourceName+"/*", "POST", []string{})
 				if err != nil {
 					log.Err("Adding write permissions for Actuator " + err.Error())
 				}
 			}
 
-			log.Info("Adding read permissions for /status  on " + datasourceEndpoint.Hostname())
+			log.Debug("Adding read permissions for /status  on " + datasourceEndpoint.Hostname())
 			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), "/status", "GET", []string{})
 			if err != nil {
 				log.Err("Adding write permissions for Datasource " + err.Error())
 			}
 
-			log.Info("Adding read permissions for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname())
+			log.Debug("Adding read permissions for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname())
 			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), datasourceName, "GET", []string{})
 			if err != nil {
 				log.Err("Adding write permissions for Datasource " + err.Error())
 			}
 
-			log.Info("Adding read permissions for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname() + "/*")
+			log.Debug("Adding read permissions for " + localContainerName + " on data source " + datasourceName + " on " + datasourceEndpoint.Hostname() + "/*")
 			err = cm.addPermission(localContainerName, datasourceEndpoint.Hostname(), datasourceName+"/*", "GET", []string{})
 			if err != nil {
 				log.Err("Adding write permissions for Datasource " + err.Error())
@@ -618,21 +670,27 @@ func (cm ContainerManager) addPermissionsFromSLA(sla databoxTypes.SLA) {
 	if sla.ResourceRequirements.Store != "" {
 		requiredStoreName := sla.Name + "-" + sla.ResourceRequirements.Store + cm.ARCH
 
-		log.Info("Adding read permissions for container-manager on " + requiredStoreName + "/cat")
+		log.Debug("Adding read permissions for container-manager on " + requiredStoreName + "/cat")
 		err = cm.addPermission("container-manager", requiredStoreName, "/cat", "GET", []string{})
 		if err != nil {
-			log.Err("Adding write permissions for Actuator " + err.Error())
+			log.Err("Adding write permissions for dependent store " + err.Error())
 		}
 
-		log.Info("Adding write permissions for dependent store " + localContainerName + " on " + requiredStoreName + "/*")
+		log.Debug("Adding write permissions for dependent store " + localContainerName + " on " + requiredStoreName + "/*")
 		err = cm.addPermission(localContainerName, requiredStoreName, "/*", "POST", []string{})
 		if err != nil {
-			log.Err("Adding write permissions for Actuator " + err.Error())
+			log.Err("Adding write permissions for dependent store " + err.Error())
+		}
+
+		log.Debug("Adding delete permissions for dependent store " + localContainerName + " on " + requiredStoreName + "/*")
+		err = cm.addPermission(localContainerName, requiredStoreName, "/*", "DELETE", []string{})
+		if err != nil {
+			log.Err("Adding delete permissions for dependent store " + err.Error())
 		}
 
 		err = cm.addPermission(localContainerName, requiredStoreName, "/*", "GET", []string{})
 		if err != nil {
-			log.Err("Adding write permissions for Actuator " + err.Error())
+			log.Err("Adding write permissions for dependent store " + err.Error())
 		}
 
 	}

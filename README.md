@@ -17,6 +17,7 @@ up-to-date as of 0.4.0
 
 - finish partial refactor or of lig-go-databox
     - Export service client needs finishing
+    - need to handel all content formats currently only JSON is supported
 
 - odd paths and setup due to cramming it all into one repo (you may need to add github.com/toshbrown/tosh-databox to your $GOPATH to get IDEs to play)
     - Move into separate repos
@@ -29,13 +30,20 @@ up-to-date as of 0.4.0
     2018-06-05 17:09:25 +00:00: INF [dns] Dns_service: banned 10.0.2.6 to resolve driver-os-monitor-core-store
     2018-06-05 17:09:25 +00:00: INF [dns] Dns_service: banned 10.0.2.6 to resolve driver-os-monitor-core-store
 ```
-- use the new store where possable (SLA persistence)
-    - add option to flush the store
+- ~~use the new store where possable (SLA persistence)~~
+    - ~~add option to flush the store~~
+    - need to update core store to 0.0.7 before it can be used!!
 
 - proxy brakes if http2 upgrade is attempted (curl dose this by default)
 - proxy has no support for websockets
 - trying to installing an app before any stores causes a hang (simple fix need to return an empty array)
 - /run/secrets/DATABOX_ROOT_CA contains the RSA PRIVATE KEY and is passed to all apps and drivers!!!!
+
+- password is hard coded
+- need to generate app qr code
+
+- build the databox command in a container so you dont need go installed
+- build the databox command for ARM as well as x86
 
 - test and fix locally installed apps for development
 

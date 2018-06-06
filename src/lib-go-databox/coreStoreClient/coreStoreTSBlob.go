@@ -187,7 +187,7 @@ func (csc *CoreStoreClient) Length(dataSourceID string) (int, error) {
 }
 
 // TSBlobObserve allows you to get notifications when a new value is written by a driver
-// the returned chan receives chan []byte continging json of the
+// the returned chan receives chan []byte continuing json of the
 // form {"TimestampMS":213123123,"Json":byte[]}
 func (csc *CoreStoreClient) TSBlobObserve(dataSourceID string) (<-chan []byte, error) {
 

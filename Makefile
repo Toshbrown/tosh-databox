@@ -27,6 +27,10 @@ start:
 startlatest:
 	bin/databox start --release latest
 
+.PHONY: startflushslas
+startflushslas:
+	bin/databox start --flushSLAs true
+
 .PHONY: stop
 stop:
 	bin/databox stop

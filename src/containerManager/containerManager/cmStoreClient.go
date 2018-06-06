@@ -3,6 +3,7 @@ package containerManager
 import (
 	log "databoxlog"
 	"encoding/json"
+	"errors"
 	"lib-go-databox/coreStoreClient"
 	databoxTypes "lib-go-databox/types"
 )
@@ -12,6 +13,8 @@ type CMStore struct {
 }
 
 const slaStoreID = "slaStore"
+
+//TODO This is all disabled until core store is updated to 0.0.7 as 0.0.6 has no delete support
 
 func NewCMStore(store *coreStoreClient.CoreStoreClient) *CMStore {
 
@@ -33,8 +36,9 @@ func NewCMStore(store *coreStoreClient.CoreStoreClient) *CMStore {
 
 func (s CMStore) SaveSLA(sla databoxTypes.SLA) error {
 
-	var payload []byte
-	err := json.Unmarshal(payload, sla)
+	return errors.New("SLADatabase Not enabled unitill core store is upgraded to 0.0.7")
+
+	payload, err := json.Marshal(sla)
 	if err != nil {
 		return err
 	}
@@ -43,9 +47,11 @@ func (s CMStore) SaveSLA(sla databoxTypes.SLA) error {
 
 }
 
-func (s CMStore) GetAllSLAs(sla databoxTypes.SLA) ([]databoxTypes.SLA, error) {
+func (s CMStore) GetAllSLAs() ([]databoxTypes.SLA, error) {
 
 	var slaList []databoxTypes.SLA
+
+	return slaList, errors.New("SLADatabase Not enabled unitill core store is upgraded to 0.0.7")
 
 	keys, err := s.Store.KVJSONListKeys(slaStoreID)
 	if err != nil {
@@ -59,7 +65,7 @@ func (s CMStore) GetAllSLAs(sla databoxTypes.SLA) ([]databoxTypes.SLA, error) {
 			log.Err("[GetAllSLAs] failed to get  " + slaStoreID + ". " + err.Error())
 			continue
 		}
-		err = json.Unmarshal(payload, sla)
+		err = json.Unmarshal(payload, &sla)
 		if err != nil {
 			log.Err("[GetAllSLAs] failed decode SLA for " + slaStoreID + ". " + err.Error())
 			continue
@@ -71,6 +77,12 @@ func (s CMStore) GetAllSLAs(sla databoxTypes.SLA) ([]databoxTypes.SLA, error) {
 
 }
 
+func (s CMStore) DeleteSLA(name string) error {
+	return errors.New("SLADatabase Not enabled unitill core store is upgraded to 0.0.7")
+	//return s.Store.KVJSONDelete(slaStoreID, name)
+}
+
 func (s CMStore) ClearSLADatabase() error {
-	return s.Store.KVJSONDeleteAll(slaStoreID)
+	return errors.New("SLADatabase Not enabled unitill core store is upgraded to 0.0.7")
+	//return s.Store.KVJSONDeleteAll(slaStoreID)
 }

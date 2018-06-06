@@ -34,6 +34,7 @@ type databoxLoader struct {
 	appServerImage                string
 	exportServiceImage            string
 	reGenerateDataboxCertificates bool
+	clearSLAs                     bool
 }
 
 //TODO dose this need to be in a module or just part of the main app?
@@ -51,7 +52,7 @@ func New(version string) databoxLoader {
 	}
 }
 
-func (d *databoxLoader) Start(ip, cmImage, arbiterImage, coreNetworkImage, coreNetworkRelayImage, appServerImage, exportServiceImage string, reGenerateDataboxCertificates bool) {
+func (d *databoxLoader) Start(ip, cmImage, arbiterImage, coreNetworkImage, coreNetworkRelayImage, appServerImage, exportServiceImage string, reGenerateDataboxCertificates bool, clearSLAs bool) {
 
 	_, err := d.cli.SwarmInit(context.Background(), swarm.InitRequest{
 		ListenAddr:    "127.0.0.1",
@@ -73,7 +74,7 @@ func (d *databoxLoader) Start(ip, cmImage, arbiterImage, coreNetworkImage, coreN
 	d.appServerImage = appServerImage
 	d.exportServiceImage = exportServiceImage
 	d.reGenerateDataboxCertificates = reGenerateDataboxCertificates
-
+	d.clearSLAs = clearSLAs
 	d.createContainerManager()
 
 }
@@ -150,6 +151,7 @@ func (d *databoxLoader) createContainerManager() {
 					"DATABOX_APP_SERVER_IMAGE=" + d.appServerImage,
 					"DATABOX_EXPORT_SERVICE_IMAGE=" + d.exportServiceImage,
 					"DATABOX_REGENERATE_CERTIFICATES=" + strconv.FormatBool(d.reGenerateDataboxCertificates),
+					"DATABOX_FLUSH_SLA_DB=" + strconv.FormatBool(d.clearSLAs),
 					"DATABOX_EXTERNAL_IP=" + getExternalIP(),
 				},
 				Mounts: []mount.Mount{

@@ -24,6 +24,24 @@ func (csc *CoreStoreClient) KVJSONRead(dataSourceID string, key string) ([]byte,
 
 }
 
+// KVJSONDelete deletes data under the key.
+func (csc *CoreStoreClient) KVJSONDelete(dataSourceID string, key string) error {
+
+	path := "/kv/" + dataSourceID + "/" + key
+
+	return csc.delete(path)
+
+}
+
+// KVJSONDeleteAll deletes all keys and data from the datasource.
+func (csc *CoreStoreClient) KVJSONDeleteAll(dataSourceID string) error {
+
+	path := "/kv/" + dataSourceID
+
+	return csc.delete(path)
+
+}
+
 // KVJSONListKeys returns an array of key registed under the dataSourceID
 func (csc *CoreStoreClient) KVJSONListKeys(dataSourceID string) ([]string, error) {
 
@@ -41,20 +59,6 @@ func (csc *CoreStoreClient) KVJSONListKeys(dataSourceID string) ([]string, error
 		return []string{}, errors.New("KVJSONListKeys: Error decoding data. " + err.Error())
 	}
 	return keysArray, nil
-
-}
-
-// KVJSONDelete will delete the value store under that key
-func (csc *CoreStoreClient) KVJSONDelete(dataSourceID string, key string) error {
-
-	return errors.New("KVJSONDelete is not implicated yet github.com/toshbrown/goZestClient needs updating")
-
-}
-
-// KVJSONDeleteAll will delete the values store under the datasource
-func (csc *CoreStoreClient) KVJSONDeleteAll(dataSourceID string) error {
-
-	return errors.New("KVJSONDeleteAll is not implicated yet github.com/toshbrown/goZestClient needs updating")
 
 }
 

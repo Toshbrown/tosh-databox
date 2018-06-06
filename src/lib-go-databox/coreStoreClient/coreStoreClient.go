@@ -12,7 +12,7 @@ import (
 	arbiterClient "lib-go-databox/arbiterClient"
 	databoxTypes "lib-go-databox/types"
 
-	zest "github.com/toshbrown/goZestClient"
+	zest "github.com/me-box/goZestClient"
 )
 
 type CoreStoreClient struct {
@@ -225,6 +225,22 @@ func (csc *CoreStoreClient) write(path string, payload []byte) error {
 	err = csc.ZestC.Post(string(token), path, payload, "JSON")
 	if err != nil {
 		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "POST")
+		return errors.New("Error writing: " + err.Error())
+	}
+
+	return nil
+}
+
+func (csc *CoreStoreClient) delete(path string) error {
+
+	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "DELETE")
+	if err != nil {
+		return err
+	}
+
+	err = csc.ZestC.Delete(string(token), path, "JSON")
+	if err != nil {
+		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "DELETE")
 		return errors.New("Error writing: " + err.Error())
 	}
 

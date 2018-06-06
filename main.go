@@ -26,6 +26,7 @@ func main() {
 	coreNetworkRelay := startCmd.String("core-network-relay", "databoxsystems/core-network-relay", "Override core-network-relay image")
 	appServerImage := startCmd.String("app-server", "databoxsystems/app-server", "Override local app-server image")
 	exportServerImage := startCmd.String("export-service", "databoxsystems/export-service", "Override export-service image")
+	clearSLAdb := startCmd.Bool("flushSLAs", false, "Removes any saved apps or drivers from the SLA database so they will not restart")
 	ReGenerateDataboxCertificates := startCmd.Bool("regenerateCerts", false, "Fore databox to regenerate the databox root and certificate")
 
 	stopCmd := flag.NewFlagSet("stop", flag.ExitOnError)
@@ -61,7 +62,8 @@ func main() {
 			*coreNetworkRelay,
 			*appServerImage,
 			*exportServerImage,
-			*ReGenerateDataboxCertificates)
+			*ReGenerateDataboxCertificates,
+			*clearSLAdb)
 	case "stop":
 		log.Info("Stoping Databox ...")
 		stopCmd.Parse(os.Args[2:])
