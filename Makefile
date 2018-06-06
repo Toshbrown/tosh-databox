@@ -7,11 +7,13 @@ all: build
 .PHONY: build
 build:
 	docker build -t go-container-manager:0.4.0 .
+	docker tag go-container-manager:0.4.0 go-container-manager:latest
 	@GOPATH=$(DATABOX_GOPATH) go build -o bin/$(PACKAGE) main.go
 
 .PHONY: build-cm
 build-cm:
 	docker build -t go-container-manager:0.4.0 .
+	docker tag go-container-manager:0.4.0 go-container-manager:latest
 
 .PHONY: build-cmd
 build-cmd:
@@ -20,6 +22,10 @@ build-cmd:
 .PHONY: start
 start:
 	bin/databox start
+
+.PHONY: startlatest
+startlatest:
+	bin/databox start --release latest
 
 .PHONY: stop
 stop:

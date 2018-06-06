@@ -53,7 +53,7 @@ func main() {
 
 	switch os.Args[1] {
 	case "start":
-		log.Info("Starting Databox ...")
+		log.Info("Starting Databox " + *startCmdRelease)
 		databox.Start(*startCmdIP,
 			*cmImage,
 			*arbiterImage,

@@ -73,7 +73,7 @@ function test_app_os_monitor {
   #Function test if app-os-monitor is running and can get data from the store
 
   #is the OS monitor app up
-  STATUS=$(curl -sL --cookie ./databox-jar --insecure --http1.1 -w "%{http_code}\\n" "https://127.0.0.1/app-os-monitor/ui" -o /dev/null)
+  STATUS=$(curl -s --insecure --http1.1 --cookie ./databox-jar  -w "%{http_code}\\n" "https://127.0.0.1/app-os-monitor/ui" -o /dev/null)
   test_assert "$STATUS" 200 "Is the app-os-monitor/ui available?"
 
   #is the OS monitor app able to get data
@@ -162,7 +162,7 @@ sleep 10
 test_app_os_monitor
 
 #
-# Can't test this as we have nor SLA persistence
+# Can't test this as we have no SLA persistence
 #
 
 #echo "Stopping data box"

@@ -161,7 +161,7 @@ func (cm ContainerManager) Restart(name string) error {
 	//Stash the old container IP
 	oldIP := ""
 	for netName := range contList[0].NetworkSettings.Networks {
-		serviceName := strings.Replace(name, "-core-store", "", 1)
+		serviceName := strings.Replace(name, "-core-store", "", 1) //TODO hardcoded -core-store
 		if strings.Contains(netName, serviceName) {
 			oldIP = contList[0].NetworkSettings.Networks[netName].IPAMConfig.IPv4Address
 		}
