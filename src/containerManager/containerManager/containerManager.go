@@ -337,9 +337,30 @@ func (cm ContainerManager) launchCMStore() string {
 	return "tcp://container-manager-core-store:5555"
 }
 
+func (cm ContainerManager) calculateRegistryUrlFromSLA(sla databoxTypes.SLA) string {
+
+	//default to databoxsystems
+	registryUrl := "databoxsystems/" //TODO provide a way to override this at start up
+
+	if sla.StoreURL != "" {
+		storeURL, err := url.Parse(sla.StoreURL)
+		if err != nil {
+			log.Warn("Could not parse sla.StoreURL as a url. Using default registry")
+			return registryUrl
+		}
+		storeHost := storeURL.Hostname()
+		if storeHost == "127.0.0.1" || storeHost == "localhost" {
+			//the sla came from the local store the image should be on the local machine
+			registryUrl = ""
+		}
+	}
+
+	return registryUrl
+}
+
 func (cm ContainerManager) getDriverConfig(sla databoxTypes.SLA, localContainerName string, netConf coreNetworkClient.NetworkConfig) (swarm.ServiceSpec, types.ServiceCreateOptions, []string) {
 
-	registry := "databoxsystems/" //TODO this needs to be set from the SLA?
+	registry := cm.calculateRegistryUrlFromSLA(sla)
 
 	service := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
@@ -377,7 +398,7 @@ func (cm ContainerManager) getDriverConfig(sla databoxTypes.SLA, localContainerN
 
 func (cm ContainerManager) getAppConfig(sla databoxTypes.SLA, localContainerName string, netConf coreNetworkClient.NetworkConfig) (swarm.ServiceSpec, types.ServiceCreateOptions, []string) {
 
-	registry := "databoxsystems/" //TODO this needs to be set from the SLA?
+	registry := cm.calculateRegistryUrlFromSLA(sla)
 
 	service := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
