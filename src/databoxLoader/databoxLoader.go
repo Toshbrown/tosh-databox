@@ -11,30 +11,21 @@ import (
 	"syscall"
 	"time"
 
+	log "databoxlog"
+	databoxTypes "lib-go-databox/types"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-
-	log "databoxlog"
 )
 
 type databoxLoader struct {
-	cli                           *client.Client
-	debug                         bool
-	registry                      string
-	version                       string
-	path                          string
-	host_ip                       string
-	cmImage                       string
-	arbiterImage                  string
-	coreNetworkImage              string
-	coreNetworkRelayImage         string
-	appServerImage                string
-	exportServiceImage            string
-	reGenerateDataboxCertificates bool
-	clearSLAs                     bool
+	cli     *client.Client
+	version string
+	path    string
+	options *databoxTypes.ContainerManagerOptions
 }
 
 //TODO dose this need to be in a module or just part of the main app?
@@ -44,19 +35,18 @@ func New(version string) databoxLoader {
 	path, _ := filepath.Abs("./")
 
 	return databoxLoader{
-		cli:      cli,
-		debug:    true,
-		registry: "", //TODO fix this
-		version:  version,
-		path:     path,
+		cli:     cli,
+		version: version,
+		path:    path,
 	}
 }
 
-func (d *databoxLoader) Start(ip, cmImage, arbiterImage, coreNetworkImage, coreNetworkRelayImage, appServerImage, exportServiceImage string, reGenerateDataboxCertificates bool, clearSLAs bool) {
+//func (d *databoxLoader) Start(ip, cmImage, arbiterImage, coreNetworkImage, coreNetworkRelayImage, appServerImage, exportServiceImage string, reGenerateDataboxCertificates bool, clearSLAs bool) {
+func (d *databoxLoader) Start(opt *databoxTypes.ContainerManagerOptions) {
 
 	_, err := d.cli.SwarmInit(context.Background(), swarm.InitRequest{
 		ListenAddr:    "127.0.0.1",
-		AdvertiseAddr: ip,
+		AdvertiseAddr: opt.SwarmAdvertiseAddress,
 	})
 	log.ChkErrFatal(err)
 
@@ -65,16 +55,8 @@ func (d *databoxLoader) Start(ip, cmImage, arbiterImage, coreNetworkImage, coreN
 	err = syscall.Mkfifo("/tmp/databox_relay", 0666)
 	log.ChkErrFatal(err)
 
-	d.host_ip = ip
+	d.options = opt
 
-	d.cmImage = cmImage
-	d.arbiterImage = arbiterImage
-	d.coreNetworkImage = coreNetworkImage
-	d.coreNetworkRelayImage = coreNetworkRelayImage
-	d.appServerImage = appServerImage
-	d.exportServiceImage = exportServiceImage
-	d.reGenerateDataboxCertificates = reGenerateDataboxCertificates
-	d.clearSLAs = clearSLAs
 	d.createContainerManager()
 
 }
@@ -136,23 +118,25 @@ func (d *databoxLoader) createContainerManager() {
 	service := swarm.ServiceSpec{
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:  d.cmImage + ":" + d.version,
+				Image:  d.options.ContainerManagerImage + ":" + d.version,
 				Labels: map[string]string{"databox.type": "container-manager"},
 				Env: []string{
 					"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080",
-					"DATABOX_DEV=0", //TODO fix me
 					"DATABOX_SDK=0",
 					"DATABOX_VERSION=" + d.version,
+					"DATABOX_DEFAULT_REGISTRY=" + d.options.DefaultRegistry,
 					"DATABOX_HOST_PATH=" + d.path,
-					"DATABOX_HOST_IP=" + d.host_ip,
-					"DATABOX_ARBITER_IMAGE=" + d.arbiterImage,
-					"DATABOX_CORE_NETWORK_IMAGE=" + d.coreNetworkImage,
-					"DATABOX_CORE_NETWORK_RELAY_IMAGE=" + d.coreNetworkRelayImage,
-					"DATABOX_APP_SERVER_IMAGE=" + d.appServerImage,
-					"DATABOX_EXPORT_SERVICE_IMAGE=" + d.exportServiceImage,
-					"DATABOX_REGENERATE_CERTIFICATES=" + strconv.FormatBool(d.reGenerateDataboxCertificates),
-					"DATABOX_FLUSH_SLA_DB=" + strconv.FormatBool(d.clearSLAs),
+					"DATABOX_HOST_IP=" + d.options.SwarmAdvertiseAddress,
+					"DATABOX_ARBITER_IMAGE=" + d.options.ArbiterImage,
+					"DATABOX_CORE_NETWORK_IMAGE=" + d.options.CoreNetworkImage,
+					"DATABOX_CORE_NETWORK_RELAY_IMAGE=" + d.options.CoreNetworkRelayImage,
+					"DATABOX_APP_SERVER_IMAGE=" + d.options.AppServerImage,
+					"DATABOX_EXPORT_SERVICE_IMAGE=" + d.options.ExportServiceImage,
+					"DATABOX_REGENERATE_CERTIFICATES=" + strconv.FormatBool(d.options.ReGenerateDataboxCertificates),
+					"DATABOX_FLUSH_SLA_DB=" + strconv.FormatBool(d.options.ClearSLAs),
 					"DATABOX_EXTERNAL_IP=" + getExternalIP(),
+					"DATABOX_ENABLE_DEBUG_LOGGING=" + strconv.FormatBool(d.options.EnableDebugLogging),
+					"DATABOX_DEFAULT_STORE_IMAGE=" + d.options.DefaultStoreImage,
 				},
 				Mounts: []mount.Mount{
 					mount.Mount{

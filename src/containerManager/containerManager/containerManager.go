@@ -45,10 +45,11 @@ type ContainerManager struct {
 	cmStoreURL         string
 	Logger             *log.Logger
 	Store              *CMStore
+	Options            *databoxTypes.ContainerManagerOptions
 }
 
 // New returns a configured ContainerManager
-func New(rootCASecretId string, zmqPublicId string, zmqPrivateId string) ContainerManager {
+func New(rootCASecretId string, zmqPublicId string, zmqPrivateId string, opt *databoxTypes.ContainerManagerOptions) ContainerManager {
 
 	cli, _ := client.NewEnvClient()
 
@@ -66,6 +67,7 @@ func New(rootCASecretId string, zmqPublicId string, zmqPrivateId string) Contain
 		ZMQ_PUBLIC_KEY_ID:  zmqPublicId,
 		ZMQ_PRIVATE_KEY_ID: zmqPrivateId,
 		Version:            os.Getenv("DATABOX_VERSION"),
+		Options:            opt,
 	}
 
 	if os.Getenv("GOARCH") == "arm" {
@@ -93,7 +95,7 @@ func (cm ContainerManager) Start() {
 
 	//setup the cm to log to the store
 	cm.CoreStoreClient = coreStoreClient.New(cm.Request, &cm.ArbiterClient, "/run/secrets/ZMQ_PUBLIC_KEY", cm.cmStoreURL, false)
-	l, err := log.New(cm.CoreStoreClient)
+	l, err := log.New(cm.CoreStoreClient, cm.Options.EnableDebugLogging)
 	if err != nil {
 		log.Err("Filed to set up logging to store. " + err.Error())
 	}
@@ -104,8 +106,7 @@ func (cm ContainerManager) Start() {
 	cm.Store = NewCMStore(cm.CoreStoreClient)
 
 	//clear the saved slas if needed
-	flushSLADB, err := strconv.ParseBool(os.Getenv("DATABOX_FLUSH_SLA_DB"))
-	if flushSLADB && err == nil {
+	if cm.Options.ClearSLAs && err == nil {
 		log.Info("Clearing SLA database to remove saved apps and drivers")
 		err = cm.Store.ClearSLADatabase()
 		log.ChkErr(err)
@@ -339,8 +340,8 @@ func (cm ContainerManager) launchCMStore() string {
 
 func (cm ContainerManager) calculateRegistryUrlFromSLA(sla databoxTypes.SLA) string {
 
-	//default to databoxsystems
-	registryUrl := "databoxsystems/" //TODO provide a way to override this at start up
+	//default to default registry
+	registryUrl := cm.Options.DefaultRegistry + "/"
 
 	if sla.StoreURL != "" {
 		storeURL, err := url.Parse(sla.StoreURL)
@@ -459,15 +460,13 @@ func (cm ContainerManager) getAppConfig(sla databoxTypes.SLA, localContainerName
 
 func (cm ContainerManager) launchStore(requiredStore string, requiredStoreName string, netConf coreNetworkClient.NetworkConfig) string {
 
-	registry := "databoxsystems/" //TODO this needs to be set from the SLA?
-
 	service := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Labels: map[string]string{"databox.type": "store"},
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:  registry + requiredStore + ":" + cm.Version,
+				Image:  cm.Options.DefaultStoreImage + ":" + cm.Version,
 				Labels: map[string]string{"databox.type": "store"},
 				Env: []string{
 					"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080",

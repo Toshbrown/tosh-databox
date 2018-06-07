@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"strconv"
 	"time"
+
+	databoxTypes "lib-go-databox/types"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -23,17 +26,10 @@ import (
 
 type Databox struct {
 	cli                           *client.Client
-	cliErr                        []error
-	debug                         bool
 	registry                      string
 	version                       string
 	hostPath                      string
 	hostIP                        string
-	ArbiterImage                  string
-	CoreNetworkImage              string
-	CoreNetworkRelayImage         string
-	AppServerImage                string
-	ExportServiceImage            string
 	DATABOX_ROOT_CA_ID            string
 	CM_KEY_ID                     string
 	DATABOX_ARBITER_ID            string
@@ -43,28 +39,40 @@ type Databox struct {
 	DATABOX_DNS_IP                string
 	DATABOX_PEM                   string
 	DATABOX_NETWORK_KEY           string
+	Options                       *databoxTypes.ContainerManagerOptions
 }
 
 func New() Databox {
 	cli, _ := client.NewEnvClient()
 
+	enableDebugOutput, err := strconv.ParseBool(os.Getenv("DATABOX_ENABLE_DEBUG_LOGGING"))
+	if err != nil {
+		enableDebugOutput = false
+	}
+	ClearSLAs, err := strconv.ParseBool(os.Getenv("DATABOX_FLUSH_SLA_DB"))
+	if err != nil {
+		ClearSLAs = false
+	}
 	return Databox{
-		cli:                   cli,
-		cliErr:                nil,
-		debug:                 true,
-		registry:              "databoxsystems",
-		version:               os.Getenv("DATABOX_VERSION"),
-		hostPath:              os.Getenv("DATABOX_HOST_PATH"),
-		hostIP:                os.Getenv("DATABOX_HOST_IP"),
-		ArbiterImage:          os.Getenv("DATABOX_ARBITER_IMAGE"),
-		CoreNetworkImage:      os.Getenv("DATABOX_CORE_NETWORK_IMAGE"),
-		CoreNetworkRelayImage: os.Getenv("DATABOX_CORE_NETWORK_RELAY_IMAGE"),
-		AppServerImage:        os.Getenv("DATABOX_APP_SERVER_IMAGE"),
-		ExportServiceImage:    os.Getenv("DATABOX_EXPORT_SERVICE_IMAGE"),
+		cli:      cli,
+		version:  os.Getenv("DATABOX_VERSION"),
+		hostPath: os.Getenv("DATABOX_HOST_PATH"),
+		hostIP:   os.Getenv("DATABOX_HOST_IP"),
+		Options: &databoxTypes.ContainerManagerOptions{
+			EnableDebugLogging:    enableDebugOutput,
+			DefaultStoreImage:     os.Getenv("DATABOX_DEFAULT_STORE_IMAGE"),
+			DefaultRegistry:       os.Getenv("DATABOX_DEFAULT_REGISTRY"),
+			ArbiterImage:          os.Getenv("DATABOX_ARBITER_IMAGE"),
+			CoreNetworkImage:      os.Getenv("DATABOX_CORE_NETWORK_IMAGE"),
+			CoreNetworkRelayImage: os.Getenv("DATABOX_CORE_NETWORK_RELAY_IMAGE"),
+			AppServerImage:        os.Getenv("DATABOX_APP_SERVER_IMAGE"),
+			ExportServiceImage:    os.Getenv("DATABOX_EXPORT_SERVICE_IMAGE"),
+			ClearSLAs:             ClearSLAs,
+		},
 	}
 }
 
-func (d *Databox) Start() (string, string, string) {
+func (d *Databox) Start() (string, string, string, *databoxTypes.ContainerManagerOptions) {
 
 	fmt.Println("CM STARTED")
 	//start the core containers
@@ -94,7 +102,7 @@ func (d *Databox) Start() (string, string, string) {
 	d.startArbiter()
 	d.startExportService()
 
-	return d.DATABOX_ROOT_CA_ID, d.ZMQ_PUBLIC_KEY_ID, d.ZMQ_SECRET_KEY_ID
+	return d.DATABOX_ROOT_CA_ID, d.ZMQ_PUBLIC_KEY_ID, d.ZMQ_SECRET_KEY_ID, d.Options
 }
 
 func (d *Databox) getDNSIP() (string, error) {
@@ -118,10 +126,6 @@ func (d *Databox) getDNSIP() (string, error) {
 }
 
 func (d *Databox) startCoreNetwork() {
-
-	if d.cliErr != nil {
-		return
-	}
 
 	filters := filters.NewArgs()
 	filters.Add("name", "databox-network")
@@ -150,7 +154,7 @@ func (d *Databox) startCoreNetwork() {
 	log.ChkErrFatal(err)
 
 	config := &container.Config{
-		Image:  d.CoreNetworkImage + ":" + d.version,
+		Image:  d.Options.CoreNetworkImage + ":" + d.version,
 		Labels: map[string]string{"databox.type": "databox-network"},
 		Cmd:    []string{"-f", "/tmp/relay"},
 	}
@@ -193,7 +197,7 @@ func (d *Databox) startCoreNetwork() {
 func (d *Databox) startCoreNetworkRelay() {
 
 	config := &container.Config{
-		Image:  d.CoreNetworkRelayImage + ":" + d.version,
+		Image:  d.Options.CoreNetworkRelayImage + ":" + d.version,
 		Labels: map[string]string{"databox.type": "databox-network"},
 		Cmd:    []string{"-f", "/tmp/relay", "-h", d.hostIP},
 	}
@@ -314,7 +318,7 @@ func (d *Databox) startAppServer() {
 	containerName := "app-server"
 
 	config := &container.Config{
-		Image: d.AppServerImage + ":latest", // + d.version,
+		Image: d.Options.AppServerImage + ":latest", // + d.version,
 		Env:   []string{"LOCAL_MODE=1", "PORT=8181"},
 		ExposedPorts: nat.PortSet{
 			"8181/tcp": {},
@@ -357,7 +361,7 @@ func (d *Databox) startExportService() {
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image: d.ExportServiceImage + ":" + d.version,
+				Image: d.Options.ExportServiceImage + ":" + d.version,
 				Env:   []string{"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080"},
 				Secrets: []*swarm.SecretReference{
 					&swarm.SecretReference{
@@ -417,7 +421,7 @@ func (d *Databox) startArbiter() {
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image: d.ArbiterImage + ":" + d.version,
+				Image: d.Options.ArbiterImage + ":" + d.version,
 				Secrets: []*swarm.SecretReference{
 					&swarm.SecretReference{
 						SecretID:   d.DATABOX_ROOT_CA_ID,

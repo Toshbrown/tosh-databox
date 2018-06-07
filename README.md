@@ -10,14 +10,19 @@ up-to-date as of 0.4.0
 - ~~Some API endpoints are missing~~
 - ~~CM auth needs porting over (Almost working)~~ Password generation needs adding
 - ~~external IP for https certs needs adding~~
-- ~~add a container-manger-core-store, use it to store passwords, installed apps, root cert etc (no more writing to random files!!!) cant do this for then cm root cert as its needed to start the store :-(~~
+- ~~add a container-manager-core-store, use it to store passwords, installed apps, root cert etc (no more writing to random files!!!) cant do this for then cm root cert as its needed to start the store :-(~~
 - ~~Odd design choice to have the CM configure then restart its self (the config would be better done outside then CM)~~ (I remember why i did this now it keeps all the databox setup logic in one place)
 - ~~trying to installing an app before any stores causes a hang (simple fix need to return an empty array)~~
 - ~~/run/secrets/DATABOX_ROOT_CA contains the RSA PRIVATE KEY and is passed to all apps and drivers!!!!~~
 - ~~test and fix locally installed apps for development~~
+- ~~Disable debug output by default (and add a flag to enable it)~~
 
-- Some hard coded vars registries etc
-    - Add a flag to override the default registry
+- ~~Some hard coded vars registries etc~~
+    - ~~Add a flag to override the default registry~~
+
+- ~~use the new store where possible (SLA persistence)~~
+    - ~~add option to flush the store~~
+    - ~~need to update core store to 0.0.7 before it can be used!!~~
 
 - finish partial refactor or of lig-go-databox
     - Export service client needs finishing
@@ -37,10 +42,6 @@ up-to-date as of 0.4.0
 
 - deleting and reinstall apps is broken (Not sure I'm doing everything I need to with the core network on driver/app removal)
 
-- ~~use the new store where possible (SLA persistence)~~
-    - ~~add option to flush the store~~
-    - need to update core store to 0.0.7 before it can be used!!
-
 - proxy brakes if http2 upgrade is attempted (curl dose this by default)
 - proxy has no support for websockets
 
@@ -53,7 +54,6 @@ up-to-date as of 0.4.0
 
 
 - Add filtering to the the new combined log output
-- Disable debug output by default (and add a flag to enable it)
 
 
 # Getting it working

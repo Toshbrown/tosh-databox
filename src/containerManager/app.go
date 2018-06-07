@@ -2,7 +2,7 @@ package main
 
 import (
 	certificateGenerator "containerManager/certificateGenerator"
-	containerManger "containerManager/containerManager"
+	containerManager "containerManager/containerManager"
 	databoxStart "containerManager/databoxStart"
 	log "databoxlog"
 	"fmt"
@@ -24,10 +24,10 @@ func main() {
 	generateArbiterTokens()
 
 	databox := databoxStart.New()
-	rootCASecretID, zmqPublic, zmqPrivate := databox.Start()
+	rootCASecretID, zmqPublic, zmqPrivate, cmOpt := databox.Start()
 
 	fmt.Println("key IDs :: ", rootCASecretID, zmqPublic, zmqPrivate)
-	cm := containerManger.New(rootCASecretID, zmqPublic, zmqPrivate)
+	cm := containerManager.New(rootCASecretID, zmqPublic, zmqPrivate, cmOpt)
 	_, err := cm.WaitForContainer("arbiter", 10)
 	log.ChkErrFatal(err)
 
