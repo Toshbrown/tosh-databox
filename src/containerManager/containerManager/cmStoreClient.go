@@ -3,7 +3,6 @@ package containerManager
 import (
 	log "databoxlog"
 	"encoding/json"
-	"errors"
 	"lib-go-databox/coreStoreClient"
 	databoxTypes "lib-go-databox/types"
 )
@@ -36,8 +35,6 @@ func NewCMStore(store *coreStoreClient.CoreStoreClient) *CMStore {
 
 func (s CMStore) SaveSLA(sla databoxTypes.SLA) error {
 
-	return errors.New("SLADatabase Not enabled unitill core store is upgraded to 0.0.7")
-
 	payload, err := json.Marshal(sla)
 	if err != nil {
 		return err
@@ -50,8 +47,6 @@ func (s CMStore) SaveSLA(sla databoxTypes.SLA) error {
 func (s CMStore) GetAllSLAs() ([]databoxTypes.SLA, error) {
 
 	var slaList []databoxTypes.SLA
-
-	return slaList, errors.New("SLADatabase Not enabled unitill core store is upgraded to 0.0.7")
 
 	keys, err := s.Store.KVJSONListKeys(slaStoreID)
 	if err != nil {
@@ -78,11 +73,9 @@ func (s CMStore) GetAllSLAs() ([]databoxTypes.SLA, error) {
 }
 
 func (s CMStore) DeleteSLA(name string) error {
-	return errors.New("SLADatabase Not enabled unitill core store is upgraded to 0.0.7")
-	//return s.Store.KVJSONDelete(slaStoreID, name)
+	return s.Store.KVJSONDelete(slaStoreID, name)
 }
 
 func (s CMStore) ClearSLADatabase() error {
-	return errors.New("SLADatabase Not enabled unitill core store is upgraded to 0.0.7")
-	//return s.Store.KVJSONDeleteAll(slaStoreID)
+	return s.Store.KVJSONDeleteAll(slaStoreID)
 }

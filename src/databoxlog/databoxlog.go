@@ -20,7 +20,9 @@ type LogEntries struct {
 
 type Logs []LogEntries
 
-func New(store *corestore.CoreStoreClient) (*Logger, error) {
+var debug = false
+
+func New(store *corestore.CoreStoreClient, outputDebugLogs bool) (*Logger, error) {
 
 	dsmd := databoxtype.DataSourceMetadata{
 		Description:    "container manager logs",
@@ -33,6 +35,8 @@ func New(store *corestore.CoreStoreClient) (*Logger, error) {
 		Unit:           "",
 		Location:       "",
 	}
+
+	debug = outputDebugLogs
 
 	err := store.RegisterDatasource(dsmd)
 	ChkErr(err)
@@ -91,15 +95,11 @@ func (l Logger) GetLastNLogEntriesRaw(n int) []byte {
 
 }
 
-const debug = true
-
 func ChkErr(err error) {
 	if err == nil {
 		return
 	}
-	if debug == true {
-		Err(err.Error())
-	}
+	Err(err.Error())
 }
 
 func ChkErrFatal(err error) {
