@@ -36,14 +36,15 @@ up-to-date as of 0.4.0
 
 - proxy brakes if http2 upgrade is attempted (curl dose this by default)
 - proxy has no support for websockets
-- trying to installing an app before any stores causes a hang (simple fix need to return an empty array)
+- ~~trying to installing an app before any stores causes a hang (simple fix need to return an empty array)~~
 - ~~/run/secrets/DATABOX_ROOT_CA contains the RSA PRIVATE KEY and is passed to all apps and drivers!!!!~~
 
 - password is hard coded
 - need to generate app qr code
 
-- build the databox command in a container so you dont need go installed
-- build the databox command for ARM as well as x86
+- These are a bit tricky right now we use the C binding for zmq co cant use GOs multi arch support ;-( we may need to use multiple docker files ad QMU or have an arm build server
+    - build the databox command in a container so you dont need go installed
+    - build the databox command for ARM as well as x86
 
 - test and fix locally installed apps for development
 

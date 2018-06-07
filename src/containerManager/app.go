@@ -107,8 +107,8 @@ func generateDataboxCertificates(IP string, externalIP string, force bool) {
 		certificateGenerator.GenCertToFile(
 			rootCAPath,
 			name,
-			[]string{},
-			[]string{name},
+			[]string{"127.0.0.1"},
+			[]string{name, "localhost"},
 			certsBasePath+"/"+name+".pem",
 		)
 	}
