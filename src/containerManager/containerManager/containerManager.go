@@ -226,30 +226,40 @@ func (cm ContainerManager) Restart(name string) error {
 
 // Uninstall will restart the databox app or driver by service name
 func (cm ContainerManager) Uninstall(name string) error {
+
 	serFilters := filters.NewArgs()
 	serFilters.Add("name", name)
-
 	serList, _ := cm.cli.ServiceList(context.Background(),
 		types.ServiceListOptions{
 			Filters: serFilters,
 		})
+
 	if len(serList) < 1 {
 		return errors.New("Service " + name + " not running")
 	}
 
-	err := cm.cli.ServiceRemove(context.Background(), serList[0].ID)
+	networkConfig, err := cm.CoreNetworkClient.NetworkOfService(serList[0], serList[0].Spec.Name)
+	log.ChkErr(err)
+
+	err = cm.cli.ServiceRemove(context.Background(), serList[0].ID)
+	log.ChkErr(err)
 
 	//remove secrets
+	//TO THIS is not working !!
 	secFilters := filters.NewArgs()
-	secFilters.Add("name", strings.ToUpper(name)+".pem")
-	secFilters.Add("name", strings.ToUpper(name)+"_KEY")
-
-	secretList, err := cm.cli.SecretList(context.Background(), types.SecretListOptions{
+	secFilters.Add("name", name)
+	serviceList, err := cm.cli.ServiceList(context.Background(), types.ServiceListOptions{
 		Filters: secFilters,
 	})
-	for _, s := range secretList {
-		cm.cli.SecretRemove(context.Background(), s.ID)
+	for _, s := range serviceList {
+		for _, sec := range s.Spec.TaskTemplate.ContainerSpec.Secrets {
+			log.Debug("Removing secrete " + sec.SecretName)
+			err := cm.cli.SecretRemove(context.Background(), sec.SecretID)
+			log.ChkErr(err)
+		}
 	}
+
+	cm.CoreNetworkClient.PostUninstall(name, networkConfig)
 
 	cm.Store.DeleteSLA(name)
 

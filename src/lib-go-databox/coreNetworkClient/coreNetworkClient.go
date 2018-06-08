@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	dockerNetworkTypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 )
 
@@ -30,6 +31,11 @@ type CoreNetworkClient struct {
 type NetworkConfig struct {
 	NetworkName string
 	DNS         string
+}
+
+type PostNetworkConfig struct {
+	NetworkName string
+	IPv4Address string
 }
 
 func NewCoreNetworkClient(containerManagerKeyPath string, request *http.Client) CoreNetworkClient {
@@ -130,13 +136,65 @@ func (cnc CoreNetworkClient) PreConfig(localContainerName string, sla databoxTyp
 		}
 	}
 
-	log.Info("[PreConfig]" + networkName + " " + ipOnNewNet)
+	log.Debug("[PreConfig]" + networkName + " " + ipOnNewNet)
 
 	return NetworkConfig{NetworkName: networkName, DNS: ipOnNewNet}
 }
 
+func (cnc CoreNetworkClient) NetworkOfService(service swarm.Service, serviceName string) (PostNetworkConfig, error) {
+	fmt.Println("NetworkOfService")
+
+	netConfig := PostNetworkConfig{}
+
+	netConfig.NetworkName = serviceName + "-network"
+	//get IP of service
+	netFilters := filters.NewArgs()
+	netFilters.Add("name", netConfig.NetworkName)
+	networks, err := cnc.cli.NetworkList(context.Background(), types.NetworkListOptions{
+		Filters: netFilters,
+	})
+	log.ChkErr(err)
+
+	if len(networks) < 1 {
+		fmt.Println("Can't find network")
+
+		return netConfig, errors.New("Can't find network " + netConfig.NetworkName)
+	}
+
+	for _, net := range networks {
+		fmt.Println("network name", net.Name)
+		netInfo, _ := cnc.cli.NetworkInspect(context.Background(), net.ID, types.NetworkInspectOptions{})
+		for _, endpoint := range netInfo.Containers {
+			fmt.Println(endpoint.Name, endpoint.IPv4Address)
+			if cnc.toServiceName(endpoint.Name) == serviceName {
+				//				netConfig.IPv4Address = strings.Split(endpoint.IPv4Address, "/")[0]
+				netConfig.IPv4Address = endpoint.IPv4Address
+				break
+			}
+		}
+	}
+
+	fmt.Println("returning ", netConfig)
+	return netConfig, nil
+
+}
+
+func (cnc CoreNetworkClient) toServiceName(containerName string) string {
+
+	parts := strings.Split(containerName, ".")
+
+	return parts[0]
+}
+
+func (cnc CoreNetworkClient) PostUninstall(name string, netConfig PostNetworkConfig) error {
+
+	return cnc.DisconnectEndpoints(name, netConfig)
+
+	//TODO remove empty networks !!!
+}
+
 func (cnc CoreNetworkClient) post(LogFnName string, data []byte, URL string) error {
-	log.Debug("[" + LogFnName + "] POSTED JSON :: " + string(data))
+	log.Debug("[CoreNetworkClient." + LogFnName + "] POSTED JSON :: " + string(data))
 	req, err := http.NewRequest("POST", URL, bytes.NewBuffer(data))
 	if err != nil {
 		log.Err("[" + LogFnName + "] Error:: " + err.Error())
@@ -175,6 +233,23 @@ func (cnc CoreNetworkClient) ConnectEndpoints(serviceName string, peers []string
 	postBytes, _ := json.Marshal(data)
 
 	return cnc.post("ConnectEndpoints", postBytes, "https://databox-network:8080/connect")
+}
+
+func (cnc CoreNetworkClient) DisconnectEndpoints(serviceName string, netConfig PostNetworkConfig) error {
+
+	type postData struct {
+		Name string `json:"name"`
+		IP   string `json:"ip"`
+	}
+
+	data := postData{
+		Name: serviceName,
+		IP:   netConfig.IPv4Address,
+	}
+
+	postBytes, _ := json.Marshal(data)
+
+	return cnc.post("DisconnectEndpoints", postBytes, "https://databox-network:8080/disconnect")
 }
 
 func (cnc CoreNetworkClient) RegisterPrivileged() error {
