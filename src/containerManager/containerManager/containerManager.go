@@ -516,16 +516,29 @@ func (cm ContainerManager) launchStore(requiredStore string, requiredStoreName s
 }
 
 func (cm ContainerManager) createSecret(name string, data []byte, filename string) *swarm.SecretReference {
+
+	filters := filters.NewArgs()
+	filters.Add("name", name)
+	secrestsList, _ := cm.cli.SecretList(context.Background(), types.SecretListOptions{Filters: filters})
+	if len(secrestsList) > 0 {
+		//remove any secrets and install new one jus in case
+		for _, s := range secrestsList {
+			cm.cli.SecretRemove(context.Background(), s.ID)
+		}
+	}
+
 	secret := swarm.SecretSpec{
 		Annotations: swarm.Annotations{
 			Name: name,
 		},
 		Data: data,
 	}
+
 	secretCreateResponse, err := cm.cli.SecretCreate(context.Background(), secret)
 	if err != nil {
 		log.Err("addSecrets createSecret " + err.Error())
 	}
+
 	return &swarm.SecretReference{
 		SecretID:   secretCreateResponse.ID,
 		SecretName: name,
