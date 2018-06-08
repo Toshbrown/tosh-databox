@@ -460,6 +460,15 @@ func (cm ContainerManager) getAppConfig(sla databoxTypes.SLA, localContainerName
 
 func (cm ContainerManager) launchStore(requiredStore string, requiredStoreName string, netConf coreNetworkClient.NetworkConfig) string {
 
+	//Check to see if the store already exists !!
+	storeFilter := filters.NewArgs()
+	storeFilter.Add("name", requiredStoreName)
+	stores, _ := cm.cli.ServiceList(context.Background(), types.ServiceListOptions{Filters: storeFilter})
+	if len(stores) > 0 {
+		//we have made this before just return the requiredStoreName
+		return requiredStoreName
+	}
+
 	service := swarm.ServiceSpec{
 		Annotations: swarm.Annotations{
 			Labels: map[string]string{"databox.type": "store"},
