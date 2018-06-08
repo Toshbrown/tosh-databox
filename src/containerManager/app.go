@@ -5,7 +5,6 @@ import (
 	containerManager "containerManager/containerManager"
 	databoxStart "containerManager/databoxStart"
 	log "databoxlog"
-	"fmt"
 	"os"
 	"strconv"
 )
@@ -26,7 +25,7 @@ func main() {
 	databox := databoxStart.New()
 	rootCASecretID, zmqPublic, zmqPrivate, cmOpt := databox.Start()
 
-	fmt.Println("key IDs :: ", rootCASecretID, zmqPublic, zmqPrivate)
+	log.Debug("key IDs :: " + rootCASecretID + " " + zmqPublic + " " + zmqPrivate)
 	cm := containerManager.New(rootCASecretID, zmqPublic, zmqPrivate, cmOpt)
 	_, err := cm.WaitForContainer("arbiter", 10)
 	log.ChkErrFatal(err)

@@ -6,8 +6,10 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -81,7 +83,7 @@ func (cnc CoreNetworkClient) PreConfig(localContainerName string, sla databoxTyp
 		if err != nil {
 			log.Err("[PreConfig] NetworkInspect1 Error " + err.Error())
 		}
-		log.Info("[PreConfig] using existing network " + network.Name)
+		log.Debug("[PreConfig] using existing network " + network.Name)
 	} else {
 		//create network
 		networkCreateResponse, err := cnc.cli.NetworkCreate(context.Background(), networkName, types.NetworkCreate{
@@ -211,7 +213,8 @@ func (cnc CoreNetworkClient) post(LogFnName string, data []byte, URL string) err
 	}
 
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		log.Err("[" + LogFnName + "] PostError ")
+		response, _ := ioutil.ReadAll(resp.Body)
+		log.Err("[" + LogFnName + "] PostError StatusCode=" + strconv.Itoa(resp.StatusCode) + " data=" + string(data) + "response=" + string(response))
 		return err
 	}
 

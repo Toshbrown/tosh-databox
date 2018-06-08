@@ -18,29 +18,30 @@ up-to-date as of 0.4.0
 - ~~Disable debug output by default (and add a flag to enable it)~~
 
 - ~~Some hard coded vars registries etc~~
-    - ~~Add a flag to override the default registry~~
+  - ~~Add a flag to override the default registry~~
 
 - ~~use the new store where possible (SLA persistence)~~
-    - ~~add option to flush the store~~
-    - ~~need to update core store to 0.0.7 before it can be used!!~~
+  - ~~add option to flush the store~~
+  - ~~need to update core store to 0.0.7 before it can be used!!~~
+
+- ~~deleting and reinstall apps is broken (Not sure I'm doing everything I need to with the core network on driver/app removal)~~
 
 - finish partial refactor or of lig-go-databox
-    - Export service client needs finishing
-    - need to handel all content formats currently only JSON is supported
+  - Export service client needs finishing
+  - need to handel all content formats currently only JSON is supported
 
 - odd paths and setup due to cramming it all into one repo (you may need to add github.com/toshbrown/tosh-databox to your $GOPATH to get IDEs to play)
-    - Move into separate repos
+  - Move into separate repos
 
 - On app driver restart the IP of the containers needs to be updated see (https://github.com/me-box/core-container-manager/blob/master/src/container-manager.js#L284)
-    - This is done but on app restart there is an error re registering with the core network
-```
-    [policy] Policy.substititue 10.0.2.5 for 10.0.2.6
-    2018-06-05 17:09:25 +00:00: INF [dns] Dns_service: banned 10.0.2.6 to resolve driver-os-monitor-core-store
-    2018-06-05 17:09:25 +00:00: INF [dns] Dns_service: banned 10.0.2.6 to resolve driver-os-monitor-core-store
-    2018-06-05 17:09:25 +00:00: INF [dns] Dns_service: banned 10.0.2.6 to resolve driver-os-monitor-core-store
-```
+  - This is done but on app restart there is an error re registering with the core network
+    ```
+        [policy] Policy.substititue 10.0.2.5 for 10.0.2.6
+        2018-06-05 17:09:25 +00:00: INF [dns] Dns_service: banned 10.0.2.6 to resolve driver-os-monitor-core-store
+        2018-06-05 17:09:25 +00:00: INF [dns] Dns_service: banned 10.0.2.6 to resolve driver-os-monitor-core-store
+        2018-06-05 17:09:25 +00:00: INF [dns] Dns_service: banned 10.0.2.6 to resolve driver-os-monitor-core-store
+    ```
 
-- deleting and reinstall apps is broken (Not sure I'm doing everything I need to with the core network on driver/app removal)
 
 - proxy brakes if http2 upgrade is attempted (curl dose this by default)
 - proxy has no support for websockets
@@ -49,9 +50,8 @@ up-to-date as of 0.4.0
 - need to generate app qr code
 
 - These are a bit tricky right now we use the C binding for zmq co cant use GOs multi arch support ;-( we may need to use multiple docker files ad QMU or have an arm build server
-    - build the databox command in a container so you dont need go installed
-    - build the databox command for ARM as well as x86
-
+  - build the databox command in a container so you dont need go installed
+  - build the databox command for ARM as well as x86
 
 - Add filtering to the the new combined log output
 

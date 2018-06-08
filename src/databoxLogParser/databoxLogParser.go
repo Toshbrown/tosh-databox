@@ -27,7 +27,6 @@ func ShowLogs() {
 	var wg sync.WaitGroup
 
 	for _, service := range services {
-		fmt.Println("Monitoring logs for ", service.Spec.Name)
 		ioLogReader, err := cli.ServiceLogs(context.Background(), service.ID,
 			types.ContainerLogsOptions{
 				Follow:     true,
@@ -39,7 +38,7 @@ func ShowLogs() {
 		)
 
 		if err != nil {
-			fmt.Println("Error reading logs for ", service.Spec.Name)
+			log.Err("Error reading logs for " + service.Spec.Name)
 			continue
 		}
 		wg.Add(1)

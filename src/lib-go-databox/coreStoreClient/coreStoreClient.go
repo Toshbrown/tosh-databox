@@ -48,8 +48,6 @@ func New(databoxRequest *http.Client, arbiterClient *arbiterClient.ArbiterClient
 
 func (csc *CoreStoreClient) GetStoreDataSourceCatalogue(href string) (databoxTypes.HypercatRoot, error) {
 
-	fmt.Println("[GetStoreDataSourceCatalogue] ", href)
-
 	target := href + "/cat"
 	method := "GET"
 

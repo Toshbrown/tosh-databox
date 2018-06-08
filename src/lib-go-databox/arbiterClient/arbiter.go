@@ -117,8 +117,6 @@ func (arb *ArbiterClient) GrantContainerPermissions(permissions ContainerPermiss
 
 	jsonPostData, _ := json.Marshal(permissions)
 
-	fmt.Println("[GrantContainerPermissions] json data: " + string(jsonPostData))
-
 	req, err := http.NewRequest("POST", arb.arbiterURL+"/cm/grant-container-permissions", bytes.NewBuffer(jsonPostData))
 	if err != nil {
 		fmt.Println("[GrantContainerPermissions] Error:: ", err)
@@ -131,7 +129,6 @@ func (arb *ArbiterClient) GrantContainerPermissions(permissions ContainerPermiss
 	//TODO check response
 	_, err = arb.request.Do(req)
 	if err != nil {
-		fmt.Println("[GrantContainerPermissions] Error:: ", err)
 		return err
 	}
 
@@ -146,8 +143,6 @@ func (arb *ArbiterClient) makeArbiterRequest(arbMethod string, path string, host
 		return []byte{}, 200
 	}
 	var jsonStr = []byte(`{"target":"` + hostname + `","path":"` + endpoint + `","method":"` + method + `"}`)
-
-	fmt.Println("[makeArbiterRequest] ", string(jsonStr[:]))
 
 	url := arb.arbiterURL + path
 
@@ -167,7 +162,7 @@ func (arb *ArbiterClient) makeArbiterRequest(arbMethod string, path string, host
 	defer resp.Body.Close()
 
 	body, _ := ioutil.ReadAll(resp.Body)
-	//fmt.Println("[makeArbiterRequest] returned body ", resp, string(body))
+
 	return body, resp.StatusCode
 }
 
@@ -221,7 +216,6 @@ func (arb *ArbiterClient) checkTokenCache(href string, method string) ([]byte, e
 	arb.tokenCacheMutex.Unlock()
 	if !exists {
 		//request a token
-		fmt.Println("Token not in cache requesting new one")
 		newToken, err := arb.RequestToken(href, method)
 		if err != nil {
 			return []byte{}, err

@@ -71,10 +71,9 @@ func (l Logger) ChkErr(err error) {
 	if err == nil {
 		return
 	}
-	if debug == true {
-		Err(err.Error())
-		l.Err(err.Error())
-	}
+	Err(err.Error())
+	l.Err(err.Error())
+
 }
 
 func (l Logger) GetLastNLogEntries(n int) Logs {

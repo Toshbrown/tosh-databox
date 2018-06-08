@@ -9,7 +9,6 @@ import (
 	log "databoxlog"
 	b64 "encoding/base64"
 	"encoding/pem"
-	"fmt"
 	"io/ioutil"
 	"math/big"
 	"net"
@@ -19,7 +18,7 @@ import (
 
 func GenCert(CAFilePath string, commonName string, ips []string, hostNames []string) []byte {
 
-	fmt.Println("[GenCert] ", commonName)
+	log.Debug("[GenCert] " + commonName)
 
 	rootCertPem, err := ioutil.ReadFile(CAFilePath)
 	log.ChkErrFatal(err)
@@ -149,7 +148,7 @@ func GenerateArbiterToken() []byte {
 	data := make([]byte, len)
 	_, err := rand.Read(data)
 	if err != nil {
-		fmt.Println("error:", err)
+		log.Err(err.Error())
 		return []byte{}
 	}
 

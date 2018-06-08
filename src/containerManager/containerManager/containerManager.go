@@ -5,7 +5,6 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -91,7 +90,7 @@ func (cm ContainerManager) Start() {
 	go ServeInsecure()
 	go ServeSecure(&cm)
 
-	log.Info("CM Ready and waiting")
+	log.Info("Container Manager Ready.")
 
 	//setup the cm to log to the store
 	cm.CoreStoreClient = coreStoreClient.New(cm.Request, &cm.ArbiterClient, "/run/secrets/ZMQ_PUBLIC_KEY", cm.cmStoreURL, false)
@@ -161,7 +160,7 @@ func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
 
 	}
 
-	fmt.Println("networksToConnect", requiredNetworks)
+	log.Debug("networksToConnect" + strings.Join(requiredNetworks, ","))
 	cm.CoreNetworkClient.ConnectEndpoints(localContainerName, requiredNetworks)
 
 	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
@@ -174,6 +173,8 @@ func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
 	//save the sla for persistence over restarts
 	err = cm.Store.SaveSLA(sla)
 	log.ChkErr(err)
+
+	log.Info("Successfully installed " + sla.Name)
 
 	return nil
 }
@@ -270,7 +271,7 @@ func (cm ContainerManager) Uninstall(name string) error {
 // If the container is found within the timeout it will return a docker/api/types.Container and nil
 // otherwise an error will be returned.
 func (cm ContainerManager) WaitForContainer(name string, timeout int) (types.Container, error) {
-	log.Info("Waiting for " + name)
+	log.Debug("Waiting for " + name)
 	filters := filters.NewArgs()
 	filters.Add("label", "com.docker.swarm.service.name="+name)
 
@@ -289,7 +290,7 @@ func (cm ContainerManager) WaitForContainer(name string, timeout int) (types.Con
 
 			//give it a bit more time
 			//TODO think about using /status here
-			time.Sleep(time.Second * 2)
+			time.Sleep(time.Second * 3)
 			break
 		}
 
@@ -609,7 +610,7 @@ func (cm ContainerManager) genorateSecrets(containerName string, databoxType dat
 
 	//Only pass the zmq private key to stores.
 	if databoxType == "store" {
-		log.Info("[addSecrets] ZMQ_PRIVATE_KEY_ID=" + cm.ZMQ_PRIVATE_KEY_ID)
+		log.Debug("[addSecrets] ZMQ_PRIVATE_KEY_ID=" + cm.ZMQ_PRIVATE_KEY_ID)
 		secrets = append(secrets, &swarm.SecretReference{
 			SecretID:   cm.ZMQ_PRIVATE_KEY_ID,
 			SecretName: "ZMQ_SECRET_KEY",

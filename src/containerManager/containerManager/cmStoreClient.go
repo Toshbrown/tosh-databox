@@ -13,8 +13,6 @@ type CMStore struct {
 
 const slaStoreID = "slaStore"
 
-//TODO This is all disabled until core store is updated to 0.0.7 as 0.0.6 has no delete support
-
 func NewCMStore(store *coreStoreClient.CoreStoreClient) *CMStore {
 
 	//setup SLAStore

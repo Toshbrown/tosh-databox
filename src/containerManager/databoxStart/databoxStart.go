@@ -4,7 +4,6 @@ import (
 	"context"
 	log "databoxlog"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -74,12 +73,12 @@ func New() Databox {
 
 func (d *Databox) Start() (string, string, string, *databoxTypes.ContainerManagerOptions) {
 
-	fmt.Println("CM STARTED")
+	log.Info("ContainerManager Started")
 	//start the core containers
 	d.startCoreNetwork()
 
 	//Create global secrets that are used in more than one container
-	fmt.Println("Creating secrets")
+	log.Debug("Creating secrets")
 	d.DATABOX_ROOT_CA_ID = d.createSecretFromFile("DATABOX_ROOT_CA", "./certs/containerManagerPub.crt")
 	d.CM_KEY_ID = d.createSecretFromFile("CM_KEY", "./certs/arbiterToken-container-manager")
 
@@ -117,11 +116,10 @@ func (d *Databox) getDNSIP() (string, error) {
 	if len(contList) > 0 {
 		//store the databox-network IP to pass as dns server
 		containerJSON, _ := d.cli.ContainerInspect(context.Background(), contList[0].ID)
-		fmt.Println("getDNSIP found ip: ", containerJSON.NetworkSettings.Networks["databox-system-net"].IPAddress)
 		return containerJSON.NetworkSettings.Networks["databox-system-net"].IPAddress, nil
 	}
 
-	fmt.Println("getDNSIP ip no found")
+	log.Err("getDNSIP ip not found")
 	return "", errors.New("databox-network not found")
 }
 
@@ -136,13 +134,13 @@ func (d *Databox) startCoreNetwork() {
 
 	//after CM update we do not need to do this again!!
 	if len(contList) > 0 {
-		fmt.Println("databox-network already running")
+		log.Debug("databox-network already running")
 		//store the databox-network IP to pass as dns server
 		d.DATABOX_DNS_IP, _ = d.getDNSIP()
 		return
 	}
 
-	fmt.Println("STARTING databox-network")
+	log.Info("Starting databox-network")
 
 	options := types.NetworkCreate{
 		Driver:     "overlay",
@@ -251,7 +249,7 @@ func (d *Databox) updateContainerManager() {
 
 	if swarmService[0].Spec.TaskTemplate.ContainerSpec.DNSConfig != nil {
 		//we have already updated the service!!!
-		fmt.Println("container-manager service is up to date")
+		log.Debug("container-manager service is up to date")
 
 		f, _ := os.OpenFile("/ect/resolv.conf", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 		defer f.Close()
@@ -260,7 +258,7 @@ func (d *Databox) updateContainerManager() {
 		return
 	}
 
-	fmt.Println("Updating container-manager Service", d.DATABOX_DNS_IP)
+	log.Debug("Updating container-manager Service " + d.DATABOX_DNS_IP)
 
 	swarmService[0].Spec.TaskTemplate.ContainerSpec.DNSConfig = &swarm.DNSConfig{
 		Nameservers: []string{d.DATABOX_DNS_IP},
@@ -309,6 +307,7 @@ func (d *Databox) updateContainerManager() {
 	log.ChkErrFatal(err)
 
 	//waiting to be rebooted
+	log.Info("Restarting the Container Manager")
 	time.Sleep(time.Second * 100)
 
 }

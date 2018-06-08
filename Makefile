@@ -22,7 +22,7 @@ build-cmd:
 .PHONY: start
 start:
 	#TODO runing latest for now so that we can use core-store with zest 0.0.7
-	bin/databox start --release latest
+	bin/databox start --release latest -v
 
 .PHONY: startlatest
 startlatest:

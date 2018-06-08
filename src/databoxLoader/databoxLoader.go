@@ -2,7 +2,6 @@ package databoxLoader
 
 import (
 	"context"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -76,7 +75,7 @@ func (d *databoxLoader) Stop() {
 
 	if len(services) > 0 {
 		for _, service := range services {
-			fmt.Println("Removing old databox service")
+			log.Info("Removing old databox service " + service.Spec.Name)
 			err := d.cli.ServiceRemove(context.Background(), service.ID)
 			log.ChkErr(err)
 		}
@@ -89,7 +88,7 @@ func (d *databoxLoader) Stop() {
 
 	if len(containers) > 0 {
 		for _, container := range containers {
-			fmt.Println("Removing old databox container")
+			log.Info("Removing old databox container " + container.Image)
 			err := d.cli.ContainerStop(context.Background(), container.ID, nil)
 			log.ChkErr(err)
 		}

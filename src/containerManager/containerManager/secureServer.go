@@ -3,7 +3,6 @@ package containerManager
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
 
@@ -88,7 +87,7 @@ func ServeSecure(cm *ContainerManager) {
 	r.HandleFunc("/api/store/cat/{store}", func(w http.ResponseWriter, r *http.Request) {
 		vars := mux.Vars(r)
 		store := vars["store"]
-		fmt.Println("[/api/store/cat/{store}] store ", store)
+
 		storeURL := "tcp://" + store + ":5555"
 		storeHref := "https://" + store + ":8080"
 		sc := coreStoreClient.New(request, &ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
@@ -116,13 +115,12 @@ func ServeSecure(cm *ContainerManager) {
 		res := []string{}
 		for _, service := range services {
 			res = append(res, service.Spec.Name)
-			fmt.Println("[datasource/list] ", service.Spec.Name)
 		}
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(res); err != nil {
-			fmt.Println("error encoding json ", err)
+			log.Err("error encoding json " + err.Error())
 		}
 
 	}).Methods("GET")
@@ -186,7 +184,7 @@ func ServeSecure(cm *ContainerManager) {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(res); err != nil {
-			fmt.Println("[/api/{type}/list] error encoding json ", err)
+			log.Err("[/api/{type}/list] error encoding json " + err.Error())
 		}
 
 	}).Methods("GET")
@@ -228,7 +226,6 @@ func ServeSecure(cm *ContainerManager) {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 
 		bodyString, err := ioutil.ReadAll(r.Body)
-		fmt.Println(bodyString)
 		type jsonStruct struct {
 			Name string `json:"id"`
 		}
@@ -264,7 +261,6 @@ func ServeSecure(cm *ContainerManager) {
 	r.HandleFunc("/api/uninstall", func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
 		bodyString, err := ioutil.ReadAll(r.Body)
-		fmt.Println(string(bodyString))
 		type jsonStruct struct {
 			Name string `json:"id"`
 		}
