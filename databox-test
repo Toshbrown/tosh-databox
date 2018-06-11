@@ -82,17 +82,20 @@ function test_app_os_monitor {
   test_assert_contains "$RES" "$EXPECTED" "Can we get data from app-os-monitor?"
 }
 
+#Some bad default password for testing
+UI_AUTH_TOKEN="Some_bad_default_password_for_testing"
+
+
 #Start databox
 go run main.go stop
-go run main.go start
+go run main.go start --password ${UI_AUTH_TOKEN}
 
 rm -rf ./databox-jar > /dev/null
 
 echo "Sleeping...."
-sleep 25
+sleep 35
 docker ps
 
-UI_AUTH_TOKEN="qwertyuiop"
 #setup the auth cookie
 STATUS=$(curl -sL --cookie-jar ./databox-jar -H "authorization:Token ${UI_AUTH_TOKEN}" --insecure --http1.1 -w "%{http_code}\\n" "https://127.0.0.1/api/connect" -o /dev/null)
 test_assert $STATUS 200 "Is /api/connect available?"
