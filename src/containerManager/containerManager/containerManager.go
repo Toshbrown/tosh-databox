@@ -118,8 +118,9 @@ func (cm ContainerManager) Start() {
 		password = os.Getenv("DATABOX_PASSWORD_OVERRIDE")
 	} else {
 		log.Debug("Getting password from DB")
-		password, err := cm.Store.LoadPassword()
+		password, err = cm.Store.LoadPassword()
 		log.ChkErr(err)
+		log.Debug("|" + password + "|")
 		if password == "" {
 			log.Debug("Password not set genorating one")
 			password = cm.genoratePassword()
