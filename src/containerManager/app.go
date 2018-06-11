@@ -5,8 +5,10 @@ import (
 	containerManager "containerManager/containerManager"
 	databoxStart "containerManager/databoxStart"
 	log "databoxlog"
+	"encoding/json"
+	"io/ioutil"
+	databoxTypes "lib-go-databox/types"
 	"os"
-	"strconv"
 )
 
 func main() {
@@ -14,20 +16,22 @@ func main() {
 	DOCKER_API_VERSION := "1.35"
 	os.Setenv("DOCKER_API_VERSION", DOCKER_API_VERSION)
 
-	//get the external IP of the databox
-	externalIP := os.Getenv("DATABOX_EXTERNAL_IP")
-	ReGenerateDataboxCertificates, _ := strconv.ParseBool(os.Getenv("DATABOX_REGENERATE_CERTIFICATES"))
-	IP := os.Getenv("DATABOX_HOST_IP")
+	//get cm options from secret DATABOX_CM_OPTIONS
+	cmOptionsJSON, err := ioutil.ReadFile("/run/secrets/DATABOX_CM_OPTIONS")
+	log.ChkErrFatal(err)
+	var options databoxTypes.ContainerManagerOptions
+	err = json.Unmarshal(cmOptionsJSON, &options)
+	log.ChkErrFatal(err)
 
-	generateDataboxCertificates(IP, externalIP, ReGenerateDataboxCertificates)
+	generateDataboxCertificates(options.InternalIP, options.ExternalIP, options.ReGenerateDataboxCertificates)
 	generateArbiterTokens()
 
-	databox := databoxStart.New()
-	rootCASecretID, zmqPublic, zmqPrivate, cmOpt := databox.Start()
-
+	databox := databoxStart.New(&options)
+	rootCASecretID, zmqPublic, zmqPrivate := databox.Start()
 	log.Debug("key IDs :: " + rootCASecretID + " " + zmqPublic + " " + zmqPrivate)
-	cm := containerManager.New(rootCASecretID, zmqPublic, zmqPrivate, cmOpt)
-	_, err := cm.WaitForContainer("arbiter", 10)
+
+	cm := containerManager.New(rootCASecretID, zmqPublic, zmqPrivate, &options)
+	_, err = cm.WaitForContainer("arbiter", 10)
 	log.ChkErrFatal(err)
 
 	//Start the databox cm Uis and do initial configuration

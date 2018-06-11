@@ -2,6 +2,7 @@ package types
 
 //ContainerManagerOptions is used to configure the Container Manager
 type ContainerManagerOptions struct {
+	Version                       string
 	SwarmAdvertiseAddress         string
 	DefaultRegistry               string
 	DefaultAppStore               string
@@ -16,6 +17,9 @@ type ContainerManagerOptions struct {
 	ReGenerateDataboxCertificates bool
 	ClearSLAs                     bool
 	OverridePasword               string
+	InternalIP                    string
+	ExternalIP                    string
+	HostPath                      string
 }
 
 type DataboxType string

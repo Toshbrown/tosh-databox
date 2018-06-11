@@ -32,23 +32,20 @@ import (
 )
 
 type ContainerManager struct {
-	cli                 *client.Client
-	ArbiterClient       arbiterClient.ArbiterClient
-	CoreNetworkClient   coreNetworkClient.CoreNetworkClient
-	CoreStoreClient     *coreStoreClient.CoreStoreClient
-	Request             *http.Client
-	DATABOX_DNS_IP      string
-	DATABOX_INTERNAL_IP string
-	DATABOX_EXTERNAL_IP string
-	DATABOX_ROOT_CA_ID  string
-	ZMQ_PUBLIC_KEY_ID   string
-	ZMQ_PRIVATE_KEY_ID  string
-	ARCH                string
-	Version             string
-	cmStoreURL          string
-	Logger              *log.Logger
-	Store               *CMStore
-	Options             *databoxTypes.ContainerManagerOptions
+	cli                *client.Client
+	ArbiterClient      arbiterClient.ArbiterClient
+	CoreNetworkClient  coreNetworkClient.CoreNetworkClient
+	CoreStoreClient    *coreStoreClient.CoreStoreClient
+	Request            *http.Client
+	DATABOX_DNS_IP     string
+	DATABOX_ROOT_CA_ID string
+	ZMQ_PUBLIC_KEY_ID  string
+	ZMQ_PRIVATE_KEY_ID string
+	ARCH               string
+	cmStoreURL         string
+	Logger             *log.Logger
+	Store              *CMStore
+	Options            *databoxTypes.ContainerManagerOptions
 }
 
 // New returns a configured ContainerManager
@@ -61,18 +58,15 @@ func New(rootCASecretId string, zmqPublicId string, zmqPrivateId string, opt *da
 	cnc := coreNetworkClient.NewCoreNetworkClient("/certs/arbiterToken-databox-network", request)
 
 	cm := ContainerManager{
-		cli:                 cli,
-		ArbiterClient:       ac,
-		CoreNetworkClient:   cnc,
-		Request:             request,
-		DATABOX_DNS_IP:      os.Getenv("DATABOX_DNS_IP"),
-		DATABOX_EXTERNAL_IP: os.Getenv("DATABOX_EXTERNAL_IP"),
-		DATABOX_INTERNAL_IP: os.Getenv("DATABOX_HOST_IP"),
-		DATABOX_ROOT_CA_ID:  rootCASecretId,
-		ZMQ_PUBLIC_KEY_ID:   zmqPublicId,
-		ZMQ_PRIVATE_KEY_ID:  zmqPrivateId,
-		Version:             os.Getenv("DATABOX_VERSION"),
-		Options:             opt,
+		cli:                cli,
+		ArbiterClient:      ac,
+		CoreNetworkClient:  cnc,
+		Request:            request,
+		DATABOX_DNS_IP:     os.Getenv("DATABOX_DNS_IP"),
+		DATABOX_ROOT_CA_ID: rootCASecretId,
+		ZMQ_PUBLIC_KEY_ID:  zmqPublicId,
+		ZMQ_PRIVATE_KEY_ID: zmqPrivateId,
+		Options:            opt,
 	}
 
 	if os.Getenv("GOARCH") == "arm" {
@@ -416,7 +410,7 @@ func (cm ContainerManager) getDriverConfig(sla databoxTypes.SLA, localContainerN
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:  registry + sla.Name + ":" + cm.Version,
+				Image:  registry + sla.Name + ":" + cm.Options.Version,
 				Labels: map[string]string{"databox.type": "driver"},
 
 				Env: []string{
@@ -454,7 +448,7 @@ func (cm ContainerManager) getAppConfig(sla databoxTypes.SLA, localContainerName
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:  registry + sla.Name + ":" + cm.Version,
+				Image:  registry + sla.Name + ":" + cm.Options.Version,
 				Labels: map[string]string{"databox.type": "app"},
 
 				Env: []string{
@@ -522,7 +516,7 @@ func (cm ContainerManager) launchStore(requiredStore string, requiredStoreName s
 		},
 		TaskTemplate: swarm.TaskSpec{
 			ContainerSpec: &swarm.ContainerSpec{
-				Image:  cm.Options.DefaultStoreImage + ":" + cm.Version,
+				Image:  cm.Options.DefaultStoreImage + ":" + cm.Options.Version,
 				Labels: map[string]string{"databox.type": "store"},
 				Env: []string{
 					"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080",

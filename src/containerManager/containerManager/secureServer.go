@@ -59,8 +59,8 @@ func ServeSecure(cm *ContainerManager, password string) {
 		}
 
 		data := qrData{
-			IP:         cm.DATABOX_INTERNAL_IP,
-			IPExternal: cm.DATABOX_EXTERNAL_IP,
+			IP:         cm.Options.InternalIP,
+			IPExternal: cm.Options.ExternalIP,
 			Token:      "Token=" + password,
 		}
 

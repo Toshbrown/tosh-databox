@@ -1,22 +1,42 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
+	"path/filepath"
+	"syscall"
+	"time"
 
-	"databoxLoader"
 	"databoxLogParser"
 	log "databoxlog"
-	databoxtype "lib-go-databox/types"
+	databoxTypes "lib-go-databox/types"
+
+	"encoding/json"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/client"
 )
 
+var path string
+var dockerCli *client.Client
+
 func main() {
+
+	dockerCli, _ = client.NewEnvClient()
+
+	path, _ = filepath.Abs("./")
 
 	DOCKER_API_VERSION := flag.String("API", "1.35", "Docker API version ")
 
 	startCmd := flag.NewFlagSet("start", flag.ExitOnError)
-	startCmdIP := startCmd.String("swarm-ip", "127.0.0.1", "The external IP to use")
+	startCmdIP := startCmd.String("swarm-ip", "127.0.0.1", "The IP on the host to use")
 	startCmdRelease := startCmd.String("release", "0.4.0", "Databox version to start, can uses tagged versions or latest")
 	startCmdRegistry := startCmd.String("registry", "databoxsystems", "Override the default registry, where images are pulled form")
 	startCmdPassword := startCmd.String("password", "", "Override the password if you dont want an auto generated one. Mainly for testing")
@@ -36,7 +56,6 @@ func main() {
 	stopCmd := flag.NewFlagSet("stop", flag.ExitOnError)
 	logsCmd := flag.NewFlagSet("logs", flag.ExitOnError)
 
-	//DEV              := flag.Bool("dev", false, "Use this to enable dev mode")
 	flag.Parse()
 
 	os.Setenv("DOCKER_API_VERSION", *DOCKER_API_VERSION)
@@ -54,12 +73,12 @@ func main() {
 	}
 
 	startCmd.Parse(os.Args[2:])
-	databox := databoxLoader.New(*startCmdRelease)
 
 	switch os.Args[1] {
 	case "start":
 		log.Info("Starting Databox " + *startCmdRelease)
-		opts := &databoxtype.ContainerManagerOptions{
+		opts := &databoxTypes.ContainerManagerOptions{
+			Version:                       *startCmdRelease,
 			SwarmAdvertiseAddress:         *startCmdIP,
 			ContainerManagerImage:         *cmImage,
 			ArbiterImage:                  *arbiterImage,
@@ -74,13 +93,16 @@ func main() {
 			DefaultAppStore:               *appStore,
 			EnableDebugLogging:            *enableLogging,
 			OverridePasword:               *startCmdPassword,
+			HostPath:                      path,
+			ExternalIP:                    getExternalIP(),
+			InternalIP:                    *startCmdIP,
 		}
 
-		databox.Start(opts)
+		Start(opts)
 	case "stop":
 		log.Info("Stoping Databox ...")
 		stopCmd.Parse(os.Args[2:])
-		databox.Stop()
+		Stop()
 	case "logs":
 		logsCmd.Parse(os.Args[2:])
 		databoxLogParser.ShowLogs()
@@ -101,4 +123,188 @@ func displayUsage() {
 
 		Use databox [cmd] help to see more options
 		`)
+}
+
+func Start(opt *databoxTypes.ContainerManagerOptions) {
+
+	_, err := dockerCli.SwarmInit(context.Background(), swarm.InitRequest{
+		ListenAddr:    "127.0.0.1",
+		AdvertiseAddr: opt.SwarmAdvertiseAddress,
+	})
+	log.ChkErrFatal(err)
+
+	//TODO move databox_relay creation into the CM
+	os.Remove("/tmp/databox_relay")
+	err = syscall.Mkfifo("/tmp/databox_relay", 0666)
+	log.ChkErrFatal(err)
+
+	createContainerManager(opt)
+
+}
+
+func Stop() {
+
+	_, err := dockerCli.SwarmInspect(context.Background())
+	if err != nil {
+		//Not in swarm mode databox is not running
+		return
+	}
+	filters := filters.NewArgs()
+	filters.Add("label", "databox.type")
+
+	services, err := dockerCli.ServiceList(context.Background(), types.ServiceListOptions{Filters: filters})
+	log.ChkErr(err)
+
+	if len(services) > 0 {
+		for _, service := range services {
+			log.Info("Removing old databox service " + service.Spec.Name)
+			err := dockerCli.ServiceRemove(context.Background(), service.ID)
+			log.ChkErr(err)
+		}
+	}
+
+	dockerCli.SwarmLeave(context.Background(), true)
+
+	containers, err := dockerCli.ContainerList(context.Background(), types.ContainerListOptions{Filters: filters})
+	log.ChkErr(err)
+
+	if len(containers) > 0 {
+		for _, container := range containers {
+			log.Info("Removing old databox container " + container.Image)
+			err := dockerCli.ContainerStop(context.Background(), container.ID, nil)
+			log.ChkErr(err)
+		}
+	}
+
+}
+
+func createContainerManager(options *databoxTypes.ContainerManagerOptions) {
+
+	portConfig := []swarm.PortConfig{
+		swarm.PortConfig{
+			TargetPort:    443,
+			PublishedPort: 443,
+			PublishMode:   "host",
+		},
+		swarm.PortConfig{
+			TargetPort:    80,
+			PublishedPort: 80,
+			PublishMode:   "host",
+		},
+	}
+
+	certsPath, _ := filepath.Abs("./certs")
+	slaStorePath, _ := filepath.Abs("./slaStore")
+
+	//create options secret
+	optionsJSON, err := json.Marshal(options)
+	log.ChkErrFatal(err)
+	secretCreateResponse, err := dockerCli.SecretCreate(context.Background(), swarm.SecretSpec{
+		Annotations: swarm.Annotations{
+			Name: "DATABOX_CM_OPTIONS",
+		},
+		Data: optionsJSON,
+	})
+	log.ChkErrFatal(err)
+
+	cmOptionsSecret := swarm.SecretReference{
+		SecretID:   secretCreateResponse.ID,
+		SecretName: "DATABOX_CM_OPTIONS",
+		File: &swarm.SecretReferenceFileTarget{
+			Name: "DATABOX_CM_OPTIONS",
+			UID:  "0",
+			GID:  "0",
+			Mode: 0444,
+		},
+	}
+
+	service := swarm.ServiceSpec{
+		TaskTemplate: swarm.TaskSpec{
+			ContainerSpec: &swarm.ContainerSpec{
+				Image:  options.ContainerManagerImage + ":" + options.Version,
+				Labels: map[string]string{"databox.type": "container-manager"},
+				Env: []string{
+					"DATABOX_ARBITER_ENDPOINT=https://arbiter:8080",
+					"DATABOX_SDK=0",
+				},
+				Mounts: []mount.Mount{
+					mount.Mount{
+						Type:   mount.TypeBind,
+						Source: "/var/run/docker.sock",
+						Target: "/var/run/docker.sock",
+					},
+					mount.Mount{
+						Type:   mount.TypeBind,
+						Source: certsPath,
+						Target: "/certs",
+					},
+					mount.Mount{
+						Type:   mount.TypeBind,
+						Source: slaStorePath,
+						Target: "/slaStore",
+					},
+				},
+				Secrets: []*swarm.SecretReference{&cmOptionsSecret},
+			},
+			Placement: &swarm.Placement{
+				Constraints: []string{"node.role == manager"},
+			},
+		},
+		EndpointSpec: &swarm.EndpointSpec{
+			Mode:  "dnsrr",
+			Ports: portConfig,
+		},
+	}
+
+	service.Name = "container-manager"
+
+	serviceOptions := types.ServiceCreateOptions{}
+
+	//TODO DISABLED FOR NOW
+	//d.pullImage(service.TaskTemplate.ContainerSpec.Image)
+
+	_, err = dockerCli.ServiceCreate(context.Background(), service, serviceOptions)
+	log.ChkErr(err)
+
+}
+
+func pullImage(image string) {
+
+	filters := filters.NewArgs()
+	filters.Add("reference", image)
+
+	images, _ := dockerCli.ImageList(context.Background(), types.ImageListOptions{Filters: filters})
+
+	if len(images) == 0 {
+		_, err := dockerCli.ImagePull(context.Background(), image, types.ImagePullOptions{})
+		log.ChkErr(err)
+	}
+}
+
+func removeContainer(name string) {
+	filters := filters.NewArgs()
+	filters.Add("name", name)
+	containers, clerr := dockerCli.ContainerList(context.Background(), types.ContainerListOptions{
+		Filters: filters,
+		All:     true,
+	})
+	log.ChkErr(clerr)
+
+	if len(containers) > 0 {
+		rerr := dockerCli.ContainerRemove(context.Background(), containers[0].ID, types.ContainerRemoveOptions{Force: true})
+		log.ChkErr(rerr)
+	}
+}
+
+func getExternalIP() string {
+	var netClient = &http.Client{
+		Timeout: time.Second * 3,
+	}
+	response, err := netClient.Get("http://whatismyip.akamai.com/")
+	log.ChkErrFatal(err)
+	ip, err := ioutil.ReadAll(response.Body)
+	log.ChkErrFatal(err)
+	response.Body.Close()
+	log.Debug("External IP found " + string(ip))
+	return string(ip)
 }
