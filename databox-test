@@ -85,10 +85,11 @@ function test_app_os_monitor {
 #Some bad default password for testing
 UI_AUTH_TOKEN="Some_bad_default_password_for_testing"
 
-
+DATABOX_COMMAND="go run main.go start --password ${UI_AUTH_TOKEN} --release latest"
 #Start databox
 go run main.go stop
-go run main.go start --password ${UI_AUTH_TOKEN}
+# TODO --release latest is to force the use of zest 0.0.7
+$DATABOX_COMMAND --flushSLAs
 
 rm -rf ./databox-jar > /dev/null
 
@@ -123,28 +124,28 @@ sleep 30 # long sleep to wait for images to be pulled if needed!
 test_app_os_monitor
 
 #Can we restart driver-os-monitor
-PAYLOAD='{"id":"driver-os-monitor"}'
-RES=$(curl -s  --insecure --http1.1 --cookie ./databox-jar -H 'Content-Type: application/json' -X POST -d "${PAYLOAD}" -L 'https://127.0.0.1/api/restart')
-EXPECTED='{"status":200,"msg":"Success"}'
-test_assert "$RES" "$EXPECTED" "Can we restart driver-os-monitor?"
+#PAYLOAD='{"id":"driver-os-monitor"}'
+#RES=$(curl -s  --insecure --http1.1 --cookie ./databox-jar -H 'Content-Type: application/json' -X POST -d "${PAYLOAD}" -L 'https://127.0.0.1/api/restart')
+#EXPECTED='{"status":200,"msg":"Success"}'
+#test_assert "$RES" "$EXPECTED" "Can we restart driver-os-monitor?"
 
-sleep 10
+#sleep 10
 
 #Can we restart app-os-monitor
-PAYLOAD='{"id":"app-os-monitor"}'
-RES=$(curl -s  --insecure --http1.1 --cookie ./databox-jar -H 'Content-Type: application/json' -X POST -d "${PAYLOAD}" -L 'https://127.0.0.1/api/restart')
-EXPECTED='{"status":200,"msg":"Success"}'
-test_assert "$RES" "$EXPECTED" "Can we restart app-os-monitor?"
+#PAYLOAD='{"id":"app-os-monitor"}'
+#RES=$(curl -s  --insecure --http1.1 --cookie ./databox-jar -H 'Content-Type: application/json' -X POST -d "${PAYLOAD}" -L 'https://127.0.0.1/api/restart')
+#EXPECTED='{"status":200,"msg":"Success"}'
+#test_assert "$RES" "$EXPECTED" "Can we restart app-os-monitor?"
 
 #second test of the app
-sleep 10
-test_app_os_monitor
+#sleep 10
+#test_app_os_monitor
 
 
 #Can we uninstall  driver-os-monitor
 PAYLOAD='{"id":"driver-os-monitor"}'
 RES=$(curl -s  --insecure --http1.1 --cookie ./databox-jar -H 'Content-Type: application/json'  -X POST -d "${PAYLOAD}" -L 'https://127.0.0.1/api/uninstall')
-EXPECTED='{"status":"success"}'
+EXPECTED='{"status":200,"msg":"Success"}'
 test_assert "$RES" "$EXPECTED" "Can we uninstall driver-os-monitor?"
 
 sleep 10
@@ -152,31 +153,28 @@ sleep 10
 #Can we uninstall app-os-monitor
 PAYLOAD='{"id":"app-os-monitor"}'
 RES=$(curl -s  --insecure --http1.1 --cookie ./databox-jar -H 'Content-Type: application/json' -X POST -d "${PAYLOAD}" -L 'https://127.0.0.1/api/uninstall')
-EXPECTED='{"status":"success"}'
+EXPECTED='{"status":200,"msg":"Success"}'
 test_assert "$RES" "$EXPECTED" "Can we uninstall app-os-monitor?"
 
-sleep 10
+sleep 15
 
 #can we reinstall os-monitor the app and driver
 install_osmon_app_and_driver
 
 #second test of the app
-sleep 10
+sleep 20
 test_app_os_monitor
 
-#
-# Can't test this as we have no SLA persistence
-#
+echo "Stopping data box"
+./make stop
 
-#echo "Stopping data box"
-#./make stop
-
-#echo "Restarting data box"
-#./make start
+echo "Restarting data box"
+$DATABOX_COMMAND
+sleep 30
 
 #third test of the app
-#sleep 10
-#test_app_os_monitor
+sleep 10
+test_app_os_monitor
 
 
 exit 0

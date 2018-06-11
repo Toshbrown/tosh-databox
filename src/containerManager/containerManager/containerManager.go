@@ -69,11 +69,8 @@ func New(rootCASecretId string, zmqPublicId string, zmqPrivateId string, opt *da
 		Options:            opt,
 	}
 
-	if os.Getenv("GOARCH") == "arm" {
-		cm.ARCH = "arm"
-	} else {
-		cm.ARCH = ""
-	}
+	//TODO multi arch support is not available yet Speak to poonam about progress
+	cm.ARCH = ""
 
 	return cm
 }
@@ -107,14 +104,13 @@ func (cm ContainerManager) Start() {
 
 	//Load the password from the store or create a new one
 	password := ""
-	if os.Getenv("DATABOX_PASSWORD_OVERRIDE") != "" {
-		log.Warn("DATABOX_PASSWORD_OVERRIDE used!")
-		password = os.Getenv("DATABOX_PASSWORD_OVERRIDE")
+	if cm.Options.OverridePasword != "" {
+		log.Warn("OverridePasword used!")
+		password = cm.Options.OverridePasword
 	} else {
 		log.Debug("Getting password from DB")
 		password, err = cm.Store.LoadPassword()
 		log.ChkErr(err)
-		log.Debug("|" + password + "|")
 		if password == "" {
 			log.Debug("Password not set genorating one")
 			password = cm.genoratePassword()
@@ -267,7 +263,6 @@ func (cm ContainerManager) Uninstall(name string) error {
 	log.ChkErr(err)
 
 	//remove secrets
-	//TO THIS is not working !!
 	secFilters := filters.NewArgs()
 	secFilters.Add("name", name)
 	serviceList, err := cm.cli.ServiceList(context.Background(), types.ServiceListOptions{
@@ -276,8 +271,7 @@ func (cm ContainerManager) Uninstall(name string) error {
 	for _, s := range serviceList {
 		for _, sec := range s.Spec.TaskTemplate.ContainerSpec.Secrets {
 			log.Debug("Removing secrete " + sec.SecretName)
-			err := cm.cli.SecretRemove(context.Background(), sec.SecretID)
-			log.ChkErr(err)
+			cm.cli.SecretRemove(context.Background(), sec.SecretID)
 		}
 	}
 

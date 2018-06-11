@@ -333,6 +333,10 @@ func ServeSecure(cm *ContainerManager, password string) {
 			return
 		}
 
+		log.Debug("/api/uninstall finished")
+
+		w.Write([]byte(`{"status":200,"msg":"Success"}`))
+
 	}).Methods("POST")
 
 	static := http.FileServer(http.Dir("./www/https"))
