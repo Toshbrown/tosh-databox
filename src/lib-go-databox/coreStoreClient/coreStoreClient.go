@@ -213,14 +213,14 @@ func GetStoreURLFromDsHref(href string) (string, error) {
 
 }
 
-func (csc *CoreStoreClient) write(path string, payload []byte) error {
+func (csc *CoreStoreClient) write(path string, payload []byte, contentType databoxTypes.StoreContentType) error {
 
 	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "POST")
 	if err != nil {
 		return err
 	}
 
-	err = csc.ZestC.Post(string(token), path, payload, "JSON")
+	err = csc.ZestC.Post(string(token), path, payload, string(contentType))
 	if err != nil {
 		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "POST")
 		return errors.New("Error writing: " + err.Error())
@@ -229,14 +229,14 @@ func (csc *CoreStoreClient) write(path string, payload []byte) error {
 	return nil
 }
 
-func (csc *CoreStoreClient) delete(path string) error {
+func (csc *CoreStoreClient) delete(path string, contentType databoxTypes.StoreContentType) error {
 
 	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "DELETE")
 	if err != nil {
 		return err
 	}
 
-	err = csc.ZestC.Delete(string(token), path, "JSON")
+	err = csc.ZestC.Delete(string(token), path, string(contentType))
 	if err != nil {
 		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "DELETE")
 		return errors.New("Error writing: " + err.Error())
@@ -245,14 +245,14 @@ func (csc *CoreStoreClient) delete(path string) error {
 	return nil
 }
 
-func (csc *CoreStoreClient) read(path string) ([]byte, error) {
+func (csc *CoreStoreClient) read(path string, contentType databoxTypes.StoreContentType) ([]byte, error) {
 
 	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "GET")
 	if err != nil {
 		return []byte(""), err
 	}
 
-	resp, getErr := csc.ZestC.Get(string(token), path, "JSON")
+	resp, getErr := csc.ZestC.Get(string(token), path, string(contentType))
 	if getErr != nil {
 		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "GET")
 		return []byte(""), errors.New("Error getting latest data: " + getErr.Error())
@@ -261,14 +261,14 @@ func (csc *CoreStoreClient) read(path string) ([]byte, error) {
 	return resp, nil
 }
 
-func (csc *CoreStoreClient) observe(path string) (<-chan []byte, error) {
+func (csc *CoreStoreClient) observe(path string, contentType databoxTypes.StoreContentType) (<-chan []byte, error) {
 
 	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "GET")
 	if err != nil {
 		return nil, err
 	}
 
-	payloadChan, getErr := csc.ZestC.Observe(string(token), path, "JSON", 0)
+	payloadChan, getErr := csc.ZestC.Observe(string(token), path, string(contentType), 0)
 	if getErr != nil {
 		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "GET")
 		return nil, errors.New("Error observing: " + getErr.Error())

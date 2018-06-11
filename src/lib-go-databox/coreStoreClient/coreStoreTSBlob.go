@@ -3,6 +3,7 @@ package coreStoreClient
 import (
 	"encoding/json"
 	"errors"
+	databoxTypes "lib-go-databox/types"
 	"strconv"
 )
 
@@ -11,7 +12,7 @@ func (csc *CoreStoreClient) TSBlobWrite(dataSourceID string, payload []byte) err
 
 	path := "/ts/blob/" + dataSourceID
 
-	return csc.write(path, payload)
+	return csc.write(path, payload, databoxTypes.ContentTypeJSON)
 
 }
 
@@ -28,7 +29,7 @@ func (csc *CoreStoreClient) TSBlobWriteAt(dataSourceID string, timstamp int64, p
 
 	path = path + strconv.FormatInt(timstamp, 10)
 
-	err = csc.ZestC.Post(string(token), path, payload, "JSON")
+	err = csc.ZestC.Post(string(token), path, payload, string(databoxTypes.ContentTypeJSON))
 	if err != nil {
 		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path+"*", "POST")
 		return errors.New("Error writing: " + err.Error())
@@ -45,7 +46,7 @@ func (csc *CoreStoreClient) TSBlobLatest(dataSourceID string) ([]byte, error) {
 
 	path := "/ts/blob/" + dataSourceID + "/latest"
 
-	return csc.read(path)
+	return csc.read(path, databoxTypes.ContentTypeJSON)
 
 }
 
@@ -56,18 +57,7 @@ func (csc *CoreStoreClient) TSBlobEarliest(dataSourceID string) ([]byte, error) 
 
 	path := "/ts/blob/" + dataSourceID + "/earliest"
 
-	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "GET")
-	if err != nil {
-		return []byte(""), err
-	}
-
-	resp, getErr := csc.ZestC.Get(string(token), path, "JSON")
-	if getErr != nil {
-		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "GET")
-		return []byte(""), errors.New("Error getting earliest data: " + getErr.Error())
-	}
-
-	return resp, nil
+	return csc.read(path, databoxTypes.ContentTypeJSON)
 
 }
 
@@ -78,18 +68,7 @@ func (csc *CoreStoreClient) TSBlobLastN(dataSourceID string, n int) ([]byte, err
 
 	path := "/ts/blob/" + dataSourceID + "/last/" + strconv.Itoa(n)
 
-	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "GET")
-	if err != nil {
-		return []byte(""), err
-	}
-
-	resp, getErr := csc.ZestC.Get(string(token), path, "JSON")
-	if getErr != nil {
-		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "GET")
-		return []byte(""), errors.New("Error getting latest data: " + getErr.Error())
-	}
-
-	return resp, nil
+	return csc.read(path, databoxTypes.ContentTypeJSON)
 
 }
 
@@ -100,18 +79,7 @@ func (csc *CoreStoreClient) TSBlobFirstN(dataSourceID string, n int) ([]byte, er
 
 	path := "/ts/blob/" + dataSourceID + "/first/" + strconv.Itoa(n)
 
-	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "GET")
-	if err != nil {
-		return []byte(""), err
-	}
-
-	resp, getErr := csc.ZestC.Get(string(token), path, "JSON")
-	if getErr != nil {
-		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "GET")
-		return []byte(""), errors.New("Error getting latest data: " + getErr.Error())
-	}
-
-	return resp, nil
+	return csc.read(path, databoxTypes.ContentTypeJSON)
 
 }
 
@@ -122,18 +90,7 @@ func (csc *CoreStoreClient) TSBlobSince(dataSourceID string, sinceTimeStamp int6
 
 	path := "/ts/blob/" + dataSourceID + "/since/" + strconv.FormatInt(sinceTimeStamp, 10)
 
-	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "GET")
-	if err != nil {
-		return []byte(""), err
-	}
-
-	resp, getErr := csc.ZestC.Get(string(token), path, "JSON")
-	if getErr != nil {
-		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "GET")
-		return []byte(""), errors.New("Error getting latest data: " + getErr.Error())
-	}
-
-	return resp, nil
+	return csc.read(path, databoxTypes.ContentTypeJSON)
 
 }
 
@@ -144,33 +101,17 @@ func (csc *CoreStoreClient) TSBlobRange(dataSourceID string, formTimeStamp int64
 
 	path := "/ts/blob/" + dataSourceID + "/range/" + strconv.FormatInt(formTimeStamp, 10) + "/" + strconv.FormatInt(toTimeStamp, 10)
 
-	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "GET")
-	if err != nil {
-		return []byte(""), err
-	}
-
-	resp, getErr := csc.ZestC.Get(string(token), path, "JSON")
-	if getErr != nil {
-		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "GET")
-		return []byte(""), errors.New("Error getting latest data: " + getErr.Error())
-	}
-
-	return resp, nil
+	return csc.read(path, databoxTypes.ContentTypeJSON)
 
 }
 
+//Length returns then number of items stored in the timeseries
 func (csc *CoreStoreClient) Length(dataSourceID string) (int, error) {
 	path := "/ts/blob/" + dataSourceID + "/length"
 
-	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "GET")
-	if err != nil {
-		return 0, err
-	}
-
-	resp, getErr := csc.ZestC.Get(string(token), path, "JSON")
+	resp, getErr := csc.read(path, databoxTypes.ContentTypeJSON)
 	if getErr != nil {
-		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "GET")
-		return 0, errors.New("Error getting latest data: " + getErr.Error())
+		return 0, getErr
 	}
 
 	type legnthResult struct {
@@ -178,7 +119,7 @@ func (csc *CoreStoreClient) Length(dataSourceID string) (int, error) {
 	}
 
 	var val legnthResult
-	err = json.Unmarshal(resp, &val)
+	err := json.Unmarshal(resp, &val)
 	if err != nil {
 		return 0, err
 	}
@@ -193,17 +134,6 @@ func (csc *CoreStoreClient) TSBlobObserve(dataSourceID string) (<-chan []byte, e
 
 	path := "/ts/blob/" + dataSourceID
 
-	token, err := csc.Arbiter.RequestToken(csc.ZEndpoint+path, "GET")
-	if err != nil {
-		return nil, err
-	}
-
-	payloadChan, getErr := csc.ZestC.Observe(string(token), path, "JSON", 0)
-	if getErr != nil {
-		csc.Arbiter.InvalidateCache(csc.ZEndpoint+path, "GET")
-		return nil, errors.New("Error observing: " + getErr.Error())
-	}
-
-	return payloadChan, nil
+	return csc.observe(path, databoxTypes.ContentTypeJSON)
 
 }

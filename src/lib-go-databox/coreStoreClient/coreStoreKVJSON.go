@@ -3,6 +3,7 @@ package coreStoreClient
 import (
 	"encoding/json"
 	"errors"
+	databoxTypes "lib-go-databox/types"
 )
 
 // KVJSONWrite Write will add data to the key value data store.
@@ -10,7 +11,7 @@ func (csc *CoreStoreClient) KVJSONWrite(dataSourceID string, key string, payload
 
 	path := "/kv/" + dataSourceID + "/" + key
 
-	return csc.write(path, payload)
+	return csc.write(path, payload, databoxTypes.ContentTypeJSON)
 
 }
 
@@ -20,7 +21,7 @@ func (csc *CoreStoreClient) KVJSONRead(dataSourceID string, key string) ([]byte,
 
 	path := "/kv/" + dataSourceID + "/" + key
 
-	return csc.read(path)
+	return csc.read(path, databoxTypes.ContentTypeJSON)
 
 }
 
@@ -29,7 +30,7 @@ func (csc *CoreStoreClient) KVJSONDelete(dataSourceID string, key string) error 
 
 	path := "/kv/" + dataSourceID + "/" + key
 
-	return csc.delete(path)
+	return csc.delete(path, databoxTypes.ContentTypeJSON)
 
 }
 
@@ -38,7 +39,7 @@ func (csc *CoreStoreClient) KVJSONDeleteAll(dataSourceID string) error {
 
 	path := "/kv/" + dataSourceID
 
-	return csc.delete(path)
+	return csc.delete(path, databoxTypes.ContentTypeJSON)
 
 }
 
@@ -47,7 +48,7 @@ func (csc *CoreStoreClient) KVJSONListKeys(dataSourceID string) ([]string, error
 
 	path := "/kv/" + dataSourceID + "/keys"
 
-	data, err := csc.read(path)
+	data, err := csc.read(path, databoxTypes.ContentTypeJSON)
 	if err != nil {
 		return []string{}, err
 	}
@@ -66,7 +67,7 @@ func (csc *CoreStoreClient) KVJSONObserve(dataSourceID string) (<-chan []byte, e
 
 	path := "/kv/" + dataSourceID
 
-	return csc.observe(path)
+	return csc.observe(path, databoxTypes.ContentTypeJSON)
 
 }
 
@@ -74,6 +75,6 @@ func (csc *CoreStoreClient) KVJSONObserveKey(dataSourceID string, key string) (<
 
 	path := "/KV/" + dataSourceID + "/" + key
 
-	return csc.observe(path)
+	return csc.observe(path, databoxTypes.ContentTypeJSON)
 
 }
