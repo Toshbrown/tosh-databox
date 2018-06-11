@@ -77,3 +77,12 @@ func (s CMStore) DeleteSLA(name string) error {
 func (s CMStore) ClearSLADatabase() error {
 	return s.Store.KVJSONDeleteAll(slaStoreID)
 }
+
+func (s CMStore) SavePassword(password string) error {
+	return s.Store.KVTextWrite(slaStoreID, "CMPassword", []byte(password))
+}
+
+func (s CMStore) LoadPassword() (string, error) {
+	password, err := s.Store.KVTextRead(slaStoreID, "CMPassword")
+	return string(password), err
+}

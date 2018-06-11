@@ -19,11 +19,12 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/gorilla/mux"
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 var dboxproxy *databoxProxyMiddleware.DataboxProxyMiddleware
 
-func ServeSecure(cm *ContainerManager) {
+func ServeSecure(cm *ContainerManager, password string) {
 
 	//pull required databox components from the ContainerManager
 	cli := cm.cli
@@ -37,7 +38,7 @@ func ServeSecure(cm *ContainerManager) {
 	//proxy to the arbiter ui
 	dboxproxy.Add("arbiter")
 
-	dboxauth := databoxAuthMiddleware.New("qwertyuiop", dboxproxy)
+	dboxauth := databoxAuthMiddleware.New(password, dboxproxy)
 
 	log.Debug("Installing databox Middlewares")
 	r.Use(dboxauth.AuthMiddleware, dboxproxy.ProxyMiddleware)
@@ -48,6 +49,44 @@ func ServeSecure(cm *ContainerManager) {
 		w.WriteHeader(http.StatusOK)
 		w.Write(jsonString)
 	}).Methods("GET")
+
+	r.HandleFunc("/api/qrcode.png", func(w http.ResponseWriter, r *http.Request) {
+
+		type qrData struct {
+			IP         string `json:"ip"`
+			IPExternal string `json:"ipExternal"`
+			Token      string `json:"token"`
+		}
+
+		data := qrData{
+			IP:         cm.DATABOX_INTERNAL_IP,
+			IPExternal: cm.DATABOX_EXTERNAL_IP,
+			Token:      "Token=" + password,
+		}
+
+		json, err := json.Marshal(data)
+		if err != nil {
+			log.Err("[/api/qrcode.png] Error parsing JSON " + err.Error())
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))
+			return
+		}
+		var png []byte
+		png, err = qrcode.Encode(string(json), qrcode.Medium, 256)
+		if err != nil {
+			log.Err("[/api/qrcode.png] Error making  qrcode" + err.Error())
+			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/png")
+		w.WriteHeader(http.StatusOK)
+		w.Write(png)
+
+	})
 
 	r.HandleFunc("/api/datasource/list", func(w http.ResponseWriter, r *http.Request) {
 		log.Debug("/api/datasource/list called")
@@ -97,6 +136,7 @@ func ServeSecure(cm *ContainerManager) {
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))
+			return
 		}
 		catStr, _ := json.Marshal(storeCat)
 

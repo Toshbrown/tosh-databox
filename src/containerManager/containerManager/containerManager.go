@@ -26,25 +26,29 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 
+	"crypto/rand"
+
 	log "databoxlog"
 )
 
 type ContainerManager struct {
-	cli                *client.Client
-	ArbiterClient      arbiterClient.ArbiterClient
-	CoreNetworkClient  coreNetworkClient.CoreNetworkClient
-	CoreStoreClient    *coreStoreClient.CoreStoreClient
-	Request            *http.Client
-	DATABOX_DNS_IP     string
-	DATABOX_ROOT_CA_ID string
-	ZMQ_PUBLIC_KEY_ID  string
-	ZMQ_PRIVATE_KEY_ID string
-	ARCH               string
-	Version            string
-	cmStoreURL         string
-	Logger             *log.Logger
-	Store              *CMStore
-	Options            *databoxTypes.ContainerManagerOptions
+	cli                 *client.Client
+	ArbiterClient       arbiterClient.ArbiterClient
+	CoreNetworkClient   coreNetworkClient.CoreNetworkClient
+	CoreStoreClient     *coreStoreClient.CoreStoreClient
+	Request             *http.Client
+	DATABOX_DNS_IP      string
+	DATABOX_INTERNAL_IP string
+	DATABOX_EXTERNAL_IP string
+	DATABOX_ROOT_CA_ID  string
+	ZMQ_PUBLIC_KEY_ID   string
+	ZMQ_PRIVATE_KEY_ID  string
+	ARCH                string
+	Version             string
+	cmStoreURL          string
+	Logger              *log.Logger
+	Store               *CMStore
+	Options             *databoxTypes.ContainerManagerOptions
 }
 
 // New returns a configured ContainerManager
@@ -57,16 +61,18 @@ func New(rootCASecretId string, zmqPublicId string, zmqPrivateId string, opt *da
 	cnc := coreNetworkClient.NewCoreNetworkClient("/certs/arbiterToken-databox-network", request)
 
 	cm := ContainerManager{
-		cli:                cli,
-		ArbiterClient:      ac,
-		CoreNetworkClient:  cnc,
-		Request:            request,
-		DATABOX_DNS_IP:     os.Getenv("DATABOX_DNS_IP"),
-		DATABOX_ROOT_CA_ID: rootCASecretId,
-		ZMQ_PUBLIC_KEY_ID:  zmqPublicId,
-		ZMQ_PRIVATE_KEY_ID: zmqPrivateId,
-		Version:            os.Getenv("DATABOX_VERSION"),
-		Options:            opt,
+		cli:                 cli,
+		ArbiterClient:       ac,
+		CoreNetworkClient:   cnc,
+		Request:             request,
+		DATABOX_DNS_IP:      os.Getenv("DATABOX_DNS_IP"),
+		DATABOX_EXTERNAL_IP: os.Getenv("DATABOX_EXTERNAL_IP"),
+		DATABOX_INTERNAL_IP: os.Getenv("DATABOX_HOST_IP"),
+		DATABOX_ROOT_CA_ID:  rootCASecretId,
+		ZMQ_PUBLIC_KEY_ID:   zmqPublicId,
+		ZMQ_PRIVATE_KEY_ID:  zmqPrivateId,
+		Version:             os.Getenv("DATABOX_VERSION"),
+		Options:             opt,
 	}
 
 	if os.Getenv("GOARCH") == "arm" {
@@ -86,12 +92,6 @@ func (cm ContainerManager) Start() {
 	//launch the CM store
 	cm.cmStoreURL = cm.launchCMStore()
 
-	//start the webUI and API
-	go ServeInsecure()
-	go ServeSecure(&cm)
-
-	log.Info("Container Manager Ready.")
-
 	//setup the cm to log to the store
 	cm.CoreStoreClient = coreStoreClient.New(cm.Request, &cm.ArbiterClient, "/run/secrets/ZMQ_PUBLIC_KEY", cm.cmStoreURL, false)
 	l, err := log.New(cm.CoreStoreClient, cm.Options.EnableDebugLogging)
@@ -110,6 +110,31 @@ func (cm ContainerManager) Start() {
 		err = cm.Store.ClearSLADatabase()
 		log.ChkErr(err)
 	}
+
+	//Load the password from the store or create a new one
+	password := ""
+	if os.Getenv("DATABOX_PASSWORD_OVERRIDE") != "" {
+		log.Warn("DATABOX_PASSWORD_OVERRIDE used!")
+		password = os.Getenv("DATABOX_PASSWORD_OVERRIDE")
+	} else {
+		log.Debug("Getting password from DB")
+		password, err := cm.Store.LoadPassword()
+		log.ChkErr(err)
+		if password == "" {
+			log.Debug("Password not set genorating one")
+			password = cm.genoratePassword()
+			log.Debug("Saving new Password")
+			err := cm.Store.SavePassword(password)
+			log.ChkErr(err)
+		}
+	}
+	log.Info("Password=" + password)
+
+	//start the webUI and API
+	go ServeInsecure()
+	go ServeSecure(&cm, password)
+
+	log.Info("Container Manager Ready.")
 
 	//Reload and saved drivers and app from the cm store
 	log.Info("Restarting saved apps and drivers")
@@ -198,6 +223,7 @@ func (cm ContainerManager) Restart(name string) error {
 		serviceName := strings.Replace(name, "-core-store", "", 1) //TODO hardcoded -core-store
 		if strings.Contains(netName, serviceName) {
 			oldIP = contList[0].NetworkSettings.Networks[netName].IPAMConfig.IPv4Address
+			log.Debug("Old IP for " + netName + " is " + oldIP)
 		}
 	}
 
@@ -218,14 +244,14 @@ func (cm ContainerManager) Restart(name string) error {
 		serviceName := strings.Replace(name, "-core-store", "", 1)
 		if strings.Contains(netName, serviceName) {
 			newIP = newCont.NetworkSettings.Networks[netName].IPAMConfig.IPv4Address
-			log.Debug("IP found " + newIP)
+			log.Debug("IP  IP for " + netName + " is " + newIP)
 		}
 	}
 
 	return cm.CoreNetworkClient.ServiceRestart(name, oldIP, newIP)
 }
 
-// Uninstall will restart the databox app or driver by service name
+// Uninstall will remove the databox app or driver by service name
 func (cm ContainerManager) Uninstall(name string) error {
 
 	serFilters := filters.NewArgs()
@@ -304,6 +330,15 @@ func (cm ContainerManager) WaitForContainer(name string, timeout int) (types.Con
 	}
 
 	return contList[0], nil
+}
+
+func (cm ContainerManager) genoratePassword() string {
+
+	b := make([]byte, 24)
+	rand.Read(b)
+	pass := b64.StdEncoding.EncodeToString(b)
+	return pass
+
 }
 
 func (cm ContainerManager) reloadApps() {
@@ -532,7 +567,7 @@ func (cm ContainerManager) createSecret(name string, data []byte, filename strin
 	filters.Add("name", name)
 	secrestsList, _ := cm.cli.SecretList(context.Background(), types.SecretListOptions{Filters: filters})
 	if len(secrestsList) > 0 {
-		//remove any secrets and install new one jus in case
+		//remove any secrets and install new one just in case
 		for _, s := range secrestsList {
 			cm.cli.SecretRemove(context.Background(), s.ID)
 		}
@@ -562,7 +597,7 @@ func (cm ContainerManager) createSecret(name string, data []byte, filename strin
 	}
 }
 
-// genorateSecrets create if required all the secrets passed to the databox app drivers and stores
+// genorateSecrets creates, if required, all the secrets passed to the databox app drivers and stores
 func (cm ContainerManager) genorateSecrets(containerName string, databoxType databoxTypes.DataboxType) []*swarm.SecretReference {
 
 	secrets := []*swarm.SecretReference{}
@@ -626,6 +661,7 @@ func (cm ContainerManager) genorateSecrets(containerName string, databoxType dat
 	return secrets
 }
 
+//addPermissionsFromSLA parses a databox SLA and updates the arbiter with the correct permissions
 func (cm ContainerManager) addPermissionsFromSLA(sla databoxTypes.SLA) {
 
 	var err error
@@ -749,6 +785,7 @@ func (cm ContainerManager) addPermissionsFromSLA(sla databoxTypes.SLA) {
 	}
 }
 
+//addPermission helper function to wraps ArbiterClient.GrantContainerPermissions
 func (cm ContainerManager) addPermission(name string, target string, path string, method string, caveats []string) error {
 
 	newPermission := arbiterClient.ContainerPermissions{

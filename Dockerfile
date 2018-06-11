@@ -11,6 +11,7 @@ RUN go get -u github.com/me-box/lib-go-databox
 RUN go get -u github.com/me-box/goZestClient
 RUN go get -u github.com/docker/go-connections/nat
 RUN go get -u github.com/pkg/errors
+RUN go get -u github.com/skip2/go-qrcode
 RUN rm -rf /src/github.com/docker/docker/vendor/github.com/docker/go-connections
 COPY . /
 RUN addgroup -S databox && adduser -S -g databox databox

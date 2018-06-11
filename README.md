@@ -26,6 +26,9 @@ up-to-date as of 0.4.0
 
 - ~~deleting and reinstall apps is broken (Not sure I'm doing everything I need to with the core network on driver/app removal)~~
 
+- ~~password is hard coded~~
+- ~~need to generate app qr code~~
+
 - finish partial refactor or of lig-go-databox
   - Export service client needs finishing
   - need to handel all content formats currently only JSON is supported
@@ -46,8 +49,7 @@ up-to-date as of 0.4.0
 - proxy brakes if http2 upgrade is attempted (curl dose this by default)
 - proxy has no support for websockets
 
-- password is hard coded
-- need to generate app qr code
+
 
 - These are a bit tricky right now we use the C binding for zmq co cant use GOs multi arch support ;-( we may need to use multiple docker files ad QMU or have an arm build server
   - build the databox command in a container so you dont need go installed

@@ -40,7 +40,6 @@ func New(version string) databoxLoader {
 	}
 }
 
-//func (d *databoxLoader) Start(ip, cmImage, arbiterImage, coreNetworkImage, coreNetworkRelayImage, appServerImage, exportServiceImage string, reGenerateDataboxCertificates bool, clearSLAs bool) {
 func (d *databoxLoader) Start(opt *databoxTypes.ContainerManagerOptions) {
 
 	_, err := d.cli.SwarmInit(context.Background(), swarm.InitRequest{
@@ -136,6 +135,7 @@ func (d *databoxLoader) createContainerManager() {
 					"DATABOX_EXTERNAL_IP=" + getExternalIP(),
 					"DATABOX_ENABLE_DEBUG_LOGGING=" + strconv.FormatBool(d.options.EnableDebugLogging),
 					"DATABOX_DEFAULT_STORE_IMAGE=" + d.options.DefaultStoreImage,
+					"DATABOX_PASSWORD_OVERRIDE=" + d.options.OverridePasword,
 				},
 				Mounts: []mount.Mount{
 					mount.Mount{

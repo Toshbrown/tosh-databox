@@ -19,6 +19,7 @@ func main() {
 	startCmdIP := startCmd.String("swarm-ip", "127.0.0.1", "The external IP to use")
 	startCmdRelease := startCmd.String("release", "0.4.0", "Databox version to start, can uses tagged versions or latest")
 	startCmdRegistry := startCmd.String("registry", "databoxsystems", "Override the default registry, where images are pulled form")
+	startCmdPassword := startCmd.String("password", "", "Override the password if you dont want an auto generated one. Mainly for testing")
 	appStore := startCmd.String("appstore", "https://store.iotdatabox.com", "Override the default appstore where manifests are loaded form")
 	//TODO sort out the cm image name
 	cmImage := startCmd.String("cm", "go-container-manager", "Override container-manager image")
@@ -72,7 +73,9 @@ func main() {
 			DefaultRegistry:               *startCmdRegistry,
 			DefaultAppStore:               *appStore,
 			EnableDebugLogging:            *enableLogging,
+			OverridePasword:               *startCmdPassword,
 		}
+
 		databox.Start(opts)
 	case "stop":
 		log.Info("Stoping Databox ...")

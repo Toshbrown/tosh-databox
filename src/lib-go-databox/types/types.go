@@ -15,6 +15,7 @@ type ContainerManagerOptions struct {
 	EnableDebugLogging            bool
 	ReGenerateDataboxCertificates bool
 	ClearSLAs                     bool
+	OverridePasword               string
 }
 
 type DataboxType string
@@ -113,9 +114,15 @@ type DataSourceMetadata struct {
 
 type StoreType string
 
-const StoreTypeTS = "ts"
-const StoreTypeTSBlob = "ts/blob"
-const StoreTypeKV = "kv"
+const StoreTypeTS StoreType = "ts"
+const StoreTypeTSBlob StoreType = "ts/blob"
+const StoreTypeKV StoreType = "kv"
+
+type StoreContentType string
+
+const ContentTypeJSON StoreContentType = "JSON"
+const ContentTypeTEXT StoreContentType = "TEXT"
+const ContentTypeBINARY StoreContentType = "BINARY"
 
 type RelValPair struct {
 	Rel string `json:"rel"`
