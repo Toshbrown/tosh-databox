@@ -23,7 +23,7 @@ func main() {
 	err = json.Unmarshal(cmOptionsJSON, &options)
 	log.ChkErrFatal(err)
 
-	generateDataboxCertificates(options.InternalIP, options.ExternalIP, options.ReGenerateDataboxCertificates)
+	generateDataboxCertificates(options.InternalIP, options.ExternalIP)
 	generateArbiterTokens()
 
 	databox := databoxStart.New(&options)
@@ -64,19 +64,10 @@ func generateArbiterTokens() {
 	}
 }
 
-func generateDataboxCertificates(IP string, externalIP string, force bool) {
-
-	if force == true {
-		log.Debug("[generateDataboxCertificates] Forced regoration of Databox certificates")
-		os.RemoveAll(certsBasePath)
-	}
+func generateDataboxCertificates(IP string, externalIP string) {
 
 	rootCAPath := certsBasePath + "/containerManager.crt"
 	rootCAPathPub := certsBasePath + "/containerManagerPub.crt"
-
-	if _, err := os.Stat(certsBasePath); err != nil {
-		os.Mkdir(certsBasePath, 0700)
-	}
 
 	if _, err := os.Stat(rootCAPath); err != nil {
 		certificateGenerator.GenRootCA(rootCAPath, rootCAPathPub)

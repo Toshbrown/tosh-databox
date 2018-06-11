@@ -27,6 +27,8 @@ import (
 var path string
 var dockerCli *client.Client
 
+const certsBasePath = "./certs"
+
 func main() {
 
 	dockerCli, _ = client.NewEnvClient()
@@ -78,24 +80,33 @@ func main() {
 	case "start":
 		log.Info("Starting Databox " + *startCmdRelease)
 		opts := &databoxTypes.ContainerManagerOptions{
-			Version:                       *startCmdRelease,
-			SwarmAdvertiseAddress:         *startCmdIP,
-			ContainerManagerImage:         *cmImage,
-			ArbiterImage:                  *arbiterImage,
-			CoreNetworkImage:              *coreNetworkImage,
-			CoreNetworkRelayImage:         *coreNetworkRelay,
-			AppServerImage:                *appServerImage,
-			ExportServiceImage:            *exportServerImage,
-			DefaultStoreImage:             *storeImage,
-			ReGenerateDataboxCertificates: *ReGenerateDataboxCertificates,
-			ClearSLAs:                     *clearSLAdb,
-			DefaultRegistry:               *startCmdRegistry,
-			DefaultAppStore:               *appStore,
-			EnableDebugLogging:            *enableLogging,
-			OverridePasword:               *startCmdPassword,
-			HostPath:                      path,
-			ExternalIP:                    getExternalIP(),
-			InternalIP:                    *startCmdIP,
+			Version:               *startCmdRelease,
+			SwarmAdvertiseAddress: *startCmdIP,
+			ContainerManagerImage: *cmImage,
+			ArbiterImage:          *arbiterImage,
+			CoreNetworkImage:      *coreNetworkImage,
+			CoreNetworkRelayImage: *coreNetworkRelay,
+			AppServerImage:        *appServerImage,
+			ExportServiceImage:    *exportServerImage,
+			DefaultStoreImage:     *storeImage,
+			ClearSLAs:             *clearSLAdb,
+			DefaultRegistry:       *startCmdRegistry,
+			DefaultAppStore:       *appStore,
+			EnableDebugLogging:    *enableLogging,
+			OverridePasword:       *startCmdPassword,
+			HostPath:              path,
+			ExternalIP:            getExternalIP(),
+			InternalIP:            *startCmdIP,
+		}
+
+		if *ReGenerateDataboxCertificates == true {
+			log.Info("Forcing regoration of Databox certificates")
+			os.RemoveAll(certsBasePath)
+		}
+
+		//This dir must exist! if its not here the cm wont start as its used as the service attempts to bind mount it!
+		if _, err := os.Stat(certsBasePath); err != nil {
+			os.Mkdir(certsBasePath, 0700)
 		}
 
 		Start(opts)

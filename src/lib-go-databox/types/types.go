@@ -14,7 +14,6 @@ type ContainerManagerOptions struct {
 	AppServerImage                string
 	ExportServiceImage            string
 	EnableDebugLogging            bool
-	ReGenerateDataboxCertificates bool
 	ClearSLAs                     bool
 	OverridePasword               string
 	InternalIP                    string
