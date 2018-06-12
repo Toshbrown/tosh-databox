@@ -31,11 +31,9 @@ const certsBasePath = "./certs"
 
 func main() {
 
-	dockerCli, _ = client.NewEnvClient()
-
 	path, _ = filepath.Abs("./")
 
-	DOCKER_API_VERSION := flag.String("API", "1.38", "Docker API version ")
+	DOCKER_API_VERSION := flag.String("API", "1.37", "Docker API version ")
 
 	startCmd := flag.NewFlagSet("start", flag.ExitOnError)
 	startCmdIP := startCmd.String("swarm-ip", "127.0.0.1", "The IP on the host to use")
@@ -61,6 +59,7 @@ func main() {
 	flag.Parse()
 
 	os.Setenv("DOCKER_API_VERSION", *DOCKER_API_VERSION)
+	dockerCli, _ = client.NewEnvClient()
 
 	if _, err := os.Stat("./certs"); err != nil {
 		os.Mkdir("./certs", 0770)

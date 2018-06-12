@@ -10,6 +10,7 @@ before_install:
 - tar xvzf zeromq-4.2.3.tar.gz
 - cd zeromq-4.2.3; ./configure; sudo make install; sudo ldconfig; cd ..; sudo rm -rf zeromq-4.2.3
 - go get -u github.com/pebbe/zmq4
+- go get -u github.com/me-box/goZestClient
 - make build
 
 script:

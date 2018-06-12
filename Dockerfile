@@ -19,7 +19,7 @@ RUN GGO_ENABLED=0 GOOS=linux go build -a -tags netgo -installsuffix netgo -ldfla
 
 FROM alpine
 COPY --from=gobuild /etc/passwd /etc/passwd
-RUN apk update && apk add libzmq curl
+RUN apk update && apk add libzmq
 #TODO security
 USER root
 #TODO security
