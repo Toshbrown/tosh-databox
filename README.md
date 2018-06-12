@@ -60,6 +60,8 @@ up-to-date as of 0.4.0
 
 # Getting it working
 
+Install golang 10 and above (`brew install go` on MacOS )
+
 sudo apt install libzmq3-dev - or brew install zmq
 
 go get github.com/toshbrown/tosh-databox
