@@ -4,7 +4,6 @@ import (
 	"context"
 	log "databoxlog"
 	"errors"
-	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
@@ -201,7 +200,7 @@ func (d *Databox) pullImage(image string) {
 	log.Info("Pulling Image " + image)
 	_, err := d.cli.ImagePull(context.Background(), image, types.ImagePullOptions{})
 	log.ChkErrFatal(err)
-	log,info("Done pulling Image " + image)
+	log.Info("Done pulling Image " + image)
 
 }
 
