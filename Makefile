@@ -1,6 +1,5 @@
 PACKAGE  = databox
-DATABOX_GOPATH="$(shell echo ~/go):$(shell pwd)"
-
+DATABOX_GOPATH="$(shell echo ~/go):$(shell pwd):$(shell echo ${GOPATH})"
 .PHONY: all
 all: build
 
