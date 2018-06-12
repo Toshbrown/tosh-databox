@@ -5,6 +5,7 @@ go:
 before_install:
 - go get -u github.com/docker/docker/client
 - go get -u github.com/docker/docker/api
+- sudo apt-get -y install libtool pkg-config build-essential autoconf automake uuid-dev wget
 - wget https://github.com/zeromq/libzmq/releases/download/v4.2.3/zeromq-4.2.3.tar.gz
 - tar xvzf zeromq-4.2.3.tar.gz
 - cd zeromq-4.2.3; ./configure; sudo make install; sudo ldconfig; cd ..; sudo rm -rf zeromq-4.2.3
