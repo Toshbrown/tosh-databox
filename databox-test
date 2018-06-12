@@ -13,15 +13,14 @@ function fail {
     #output debug information
     echo "docker version:"
     docker version
-    echo "docker ps \n"
+    echo "docker ps "
     docker ps
-    echo "docker image ls \n"
+    echo "docker image ls "
     docker image ls | grep databox
-    echo "docker service ls \n"
+    echo "docker service ls "
     docker service ls
-    echo "service logs databox_container-manager \n"
+    echo "service logs databox_container-manager "
     docker service logs container-manager
-    echo "\n"
     exit 1
 }
 
