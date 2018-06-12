@@ -4,6 +4,7 @@ import (
 	"context"
 	log "databoxlog"
 	"errors"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"time"
@@ -39,7 +40,6 @@ type Databox struct {
 
 func New(opt *databoxTypes.ContainerManagerOptions) Databox {
 	cli, _ := client.NewEnvClient()
-
 	return Databox{
 		cli:     cli,
 		Options: opt,
@@ -198,15 +198,11 @@ func (d *Databox) startCoreNetworkRelay() {
 
 func (d *Databox) pullImage(image string) {
 
-	filters := filters.NewArgs()
-	filters.Add("reference", image)
+	log.Info("Pulling Image " + image)
+	_, err := d.cli.ImagePull(context.Background(), image, types.ImagePullOptions{})
+	log.ChkErrFatal(err)
+	log,info("Done pulling Image " + image)
 
-	images, _ := d.cli.ImageList(context.Background(), types.ImageListOptions{Filters: filters})
-
-	if len(images) == 0 {
-		_, err := d.cli.ImagePull(context.Background(), image, types.ImagePullOptions{})
-		log.ChkErrFatal(err)
-	}
 }
 
 func (d *Databox) updateContainerManager() {
