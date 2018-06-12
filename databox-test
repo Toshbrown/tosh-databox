@@ -100,7 +100,7 @@ $DATABOX_COMMAND --flushSLAs
 rm -rf ./databox-jar > /dev/null
 
 echo "Sleeping...."
-sleep 35
+sleep 60
 docker ps
 
 #setup the auth cookie
