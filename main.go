@@ -35,7 +35,7 @@ func main() {
 
 	path, _ = filepath.Abs("./")
 
-	DOCKER_API_VERSION := flag.String("API", "1.35", "Docker API version ")
+	DOCKER_API_VERSION := flag.String("API", "1.38", "Docker API version ")
 
 	startCmd := flag.NewFlagSet("start", flag.ExitOnError)
 	startCmdIP := startCmd.String("swarm-ip", "127.0.0.1", "The IP on the host to use")

@@ -3,8 +3,11 @@ language: go
 go:
   - "1.10.x"
 before_install:
-script:
+- RUN go get -u github.com/moby/moby.git
+- RUN go get -u github.com/pebbe/zmq4
 - make build
+
+script:
 - make test
 services:
 - docker

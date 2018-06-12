@@ -15,6 +15,11 @@ build-cm:
 	docker build -t go-container-manager:0.4.0 .
 	docker tag go-container-manager:0.4.0 go-container-manager:latest
 
+.PHONY: build-cm-no-cache
+build-cm-no-cache:
+	docker build -t go-container-manager:0.4.0 . --no-cache
+	docker tag go-container-manager:0.4.0 go-container-manager:latest
+
 .PHONY: build-cmd
 build-cmd:
 	@GOPATH=$(DATABOX_GOPATH) go build -o bin/$(PACKAGE) main.go
