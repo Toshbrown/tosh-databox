@@ -3,6 +3,14 @@ DATABOX_GOPATH="$(shell echo ~/go):$(shell pwd):$(shell echo ${GOPATH})"
 .PHONY: all
 all: build
 
+.PHONY: deps
+deps:
+	go get -u github.com/pebbe/zmq4
+	go get -u github.com/me-box/goZestClient
+	go get golang.org/x/net/proxy
+	go get github.com/docker/go-connections
+	go get github.com/pkg/errors
+
 .PHONY: build
 build:
 	rm -rf ~/go/src/github.com/docker/docker/vendor/github.com/docker/go-connections > /dev/null

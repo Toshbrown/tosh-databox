@@ -68,10 +68,13 @@ go get github.com/toshbrown/tosh-databox
 
 cd ~/go/src/github.com/toshbrown/tosh-databox
 
+Install required packages
+```make deps```
+
 Make sure all other version of databox are stopped!
 
-make build && make start
+```make build && make start```
 
 # Stopping it
 
-make stop
+```make stop```
