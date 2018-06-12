@@ -173,7 +173,7 @@ make stop
 
 echo "Restarting data box"
 $DATABOX_COMMAND
-sleep 60
+sleep 80
 
 #restarting databox clears session token get a new one
 setup_auth_cookie
