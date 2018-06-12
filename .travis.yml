@@ -1,0 +1,10 @@
+sudo: required
+language: go
+go:
+  - "1.10.x"
+before_install:
+script:
+- make build
+- make test
+services:
+- docker
