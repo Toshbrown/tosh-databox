@@ -11,17 +11,17 @@ function green {
 function fail {
     echo -e "[$( red FAILED )] ${1} \nERROR: ${2}"
     #output debug information
-    #echo "docker version:"
-    #docker version
-    #echo "docker ps \n"
-    #docker ps
-    #echo "docker image ls \n"
-    #docker image ls | grep databox
-    #echo "docker service ls \n"
-    #docker service ls
-    #echo "service logs databox_container-manager \n"
-    #docker service logs container-manager
-    #echo "\n"
+    echo "docker version:"
+    docker version
+    echo "docker ps \n"
+    docker ps
+    echo "docker image ls \n"
+    docker image ls | grep databox
+    echo "docker service ls \n"
+    docker service ls
+    echo "service logs databox_container-manager \n"
+    docker service logs container-manager
+    echo "\n"
     exit 1
 }
 
@@ -100,7 +100,7 @@ $DATABOX_COMMAND --flushSLAs
 rm -rf ./databox-jar > /dev/null
 
 echo "Sleeping...."
-sleep 60
+sleep 80
 docker ps
 
 #setup the auth cookie
