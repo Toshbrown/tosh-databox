@@ -51,7 +51,7 @@ type ContainerManager struct {
 // New returns a configured ContainerManager
 func New(rootCASecretId string, zmqPublicId string, zmqPrivateId string, opt *databoxTypes.ContainerManagerOptions) ContainerManager {
 
-	cli, _ := client.NewEnvClient()
+	cli, _ := client.NewEnvClient() //TODO store version in ContainerManagerOptions
 
 	request := databoxRequest.NewDataboxHTTPsAPIWithPaths("/certs/containerManager.crt")
 	ac := arbiterClient.NewArbiterClient("/certs/arbiterToken-container-manager", request, "https://arbiter:8080")

@@ -13,7 +13,7 @@ import (
 
 func main() {
 
-	DOCKER_API_VERSION := "1.37"
+	DOCKER_API_VERSION := "1.37" //TODO store version in ContainerManagerOptions
 	os.Setenv("DOCKER_API_VERSION", DOCKER_API_VERSION)
 
 	//get cm options from secret DATABOX_CM_OPTIONS
