@@ -13,7 +13,8 @@ deps:
 
 .PHONY: build
 build:
-	rm -rf ~/go/src/github.com/docker/docker/vendor/github.com/docker/go-connections > /dev/null
+	echo $(DATABOX_GOPATH)
+	rm -rf ${GOPATH}/src/github.com/docker/docker/vendor/github.com/docker/go-connections > /dev/null
 	@GOPATH=$(DATABOX_GOPATH) go build -o bin/$(PACKAGE) main.go
 	docker build -t go-container-manager:0.4.0 .
 	docker tag go-container-manager:0.4.0 go-container-manager:latest
