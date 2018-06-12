@@ -10,6 +10,8 @@ deps:
 	go get golang.org/x/net/proxy
 	go get github.com/docker/go-connections
 	go get github.com/pkg/errors
+	go get github.com/docker/docker/api/types
+	go get github.com/docker/docker/client
 
 .PHONY: build
 build:
