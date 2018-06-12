@@ -179,6 +179,8 @@ func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
 	log.Debug("networksToConnect" + strings.Join(requiredNetworks, ","))
 	cm.CoreNetworkClient.ConnectEndpoints(localContainerName, requiredNetworks)
 
+	cm.pullImage(service.TaskTemplate.ContainerSpec.Image)
+
 	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
 	if err != nil {
 		log.Err("[Error launching] " + localContainerName + " " + err.Error())
@@ -193,6 +195,15 @@ func (cm ContainerManager) LaunchFromSLA(sla databoxTypes.SLA) error {
 	log.Info("Successfully installed " + sla.Name)
 
 	return nil
+}
+
+func (cm *ContainerManager) pullImage(image string) {
+
+	log.Info("Pulling Image " + image)
+	reader, err := cm.cli.ImagePull(context.Background(), cm.Options.DefaultRegistryHost+"/"+image, types.ImagePullOptions{})
+	log.ChkErrFatal(err)
+	log.Info("Done pulling Image " + image)
+	reader.Close()
 }
 
 // Restart will restart the databox component, app or driver by service name
@@ -541,6 +552,8 @@ func (cm ContainerManager) launchStore(requiredStore string, requiredStoreName s
 	serviceOptions := types.ServiceCreateOptions{}
 
 	storeName := requiredStoreName
+
+	cm.pullImage(service.TaskTemplate.ContainerSpec.Image)
 
 	_, err := cm.cli.ServiceCreate(context.Background(), service, serviceOptions)
 	if err != nil {

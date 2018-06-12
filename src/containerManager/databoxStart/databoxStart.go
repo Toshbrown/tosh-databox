@@ -4,7 +4,6 @@ import (
 	"context"
 	log "databoxlog"
 	"errors"
-	"io"
 	"io/ioutil"
 	"os"
 	"time"
@@ -199,9 +198,8 @@ func (d *Databox) startCoreNetworkRelay() {
 func (d *Databox) pullImage(image string) {
 
 	log.Info("Pulling Image " + image)
-	reader, err := d.cli.ImagePull(context.Background(), "docker.io/"+image, types.ImagePullOptions{})
+	reader, err := d.cli.ImagePull(context.Background(), d.Options.DefaultRegistryHost+"/"+image, types.ImagePullOptions{})
 	log.ChkErrFatal(err)
-	io.Copy(os.Stdout, reader)
 	log.Info("Done pulling Image " + image)
 	reader.Close()
 }
