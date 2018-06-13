@@ -12,6 +12,7 @@ deps:
 	go get -u github.com/pkg/errors
 	go get -u github.com/docker/docker/api/types
 	go get -u github.com/docker/docker/client
+	go get -u github.com/toshbrown/lib-go-databox
 
 .PHONY: build
 build:
