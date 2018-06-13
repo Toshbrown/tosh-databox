@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"databoxLogParser"
-	log "databoxlog"
-	databoxTypes "lib-go-databox/types"
 
 	"encoding/json"
 
@@ -23,6 +21,7 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	libDatabox "github.com/toshbrown/lib-go-databox"
 )
 
 var path string
@@ -79,8 +78,8 @@ func main() {
 
 	switch os.Args[1] {
 	case "start":
-		log.Info("Starting Databox " + *startCmdRelease)
-		opts := &databoxTypes.ContainerManagerOptions{
+		libDatabox.Info("Starting Databox " + *startCmdRelease)
+		opts := &libDatabox.ContainerManagerOptions{
 			Version:               *startCmdRelease,
 			SwarmAdvertiseAddress: *startCmdIP,
 			ContainerManagerImage: *cmImage,
@@ -102,7 +101,7 @@ func main() {
 		}
 
 		if *ReGenerateDataboxCertificates == true {
-			log.Info("Forcing regoration of Databox certificates")
+			libDatabox.Info("Forcing regoration of Databox certificates")
 			os.RemoveAll(certsBasePath)
 		}
 
@@ -113,7 +112,7 @@ func main() {
 
 		Start(opts)
 	case "stop":
-		log.Info("Stoping Databox ...")
+		libDatabox.Info("Stoping Databox ...")
 		stopCmd.Parse(os.Args[2:])
 		Stop()
 	case "logs":
@@ -138,18 +137,18 @@ func displayUsage() {
 		`)
 }
 
-func Start(opt *databoxTypes.ContainerManagerOptions) {
+func Start(opt *libDatabox.ContainerManagerOptions) {
 
 	_, err := dockerCli.SwarmInit(context.Background(), swarm.InitRequest{
 		ListenAddr:    "127.0.0.1",
 		AdvertiseAddr: opt.SwarmAdvertiseAddress,
 	})
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	//TODO move databox_relay creation into the CM
 	os.Remove("/tmp/databox_relay")
 	err = syscall.Mkfifo("/tmp/databox_relay", 0666)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	createContainerManager(opt)
 
@@ -166,32 +165,32 @@ func Stop() {
 	filters.Add("label", "databox.type")
 
 	services, err := dockerCli.ServiceList(context.Background(), types.ServiceListOptions{Filters: filters})
-	log.ChkErr(err)
+	libDatabox.ChkErr(err)
 
 	if len(services) > 0 {
 		for _, service := range services {
-			log.Info("Removing old databox service " + service.Spec.Name)
+			libDatabox.Info("Removing old databox service " + service.Spec.Name)
 			err := dockerCli.ServiceRemove(context.Background(), service.ID)
-			log.ChkErr(err)
+			libDatabox.ChkErr(err)
 		}
 	}
 
 	dockerCli.SwarmLeave(context.Background(), true)
 
 	containers, err := dockerCli.ContainerList(context.Background(), types.ContainerListOptions{Filters: filters})
-	log.ChkErr(err)
+	libDatabox.ChkErr(err)
 
 	if len(containers) > 0 {
 		for _, container := range containers {
-			log.Info("Removing old databox container " + container.Image)
+			libDatabox.Info("Removing old databox container " + container.Image)
 			err := dockerCli.ContainerStop(context.Background(), container.ID, nil)
-			log.ChkErr(err)
+			libDatabox.ChkErr(err)
 		}
 	}
 
 }
 
-func createContainerManager(options *databoxTypes.ContainerManagerOptions) {
+func createContainerManager(options *libDatabox.ContainerManagerOptions) {
 
 	portConfig := []swarm.PortConfig{
 		swarm.PortConfig{
@@ -211,14 +210,14 @@ func createContainerManager(options *databoxTypes.ContainerManagerOptions) {
 
 	//create options secret
 	optionsJSON, err := json.Marshal(options)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 	secretCreateResponse, err := dockerCli.SecretCreate(context.Background(), swarm.SecretSpec{
 		Annotations: swarm.Annotations{
 			Name: "DATABOX_CM_OPTIONS",
 		},
 		Data: optionsJSON,
 	})
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	cmOptionsSecret := swarm.SecretReference{
 		SecretID:   secretCreateResponse.ID,
@@ -277,7 +276,7 @@ func createContainerManager(options *databoxTypes.ContainerManagerOptions) {
 	//d.pullImage(service.TaskTemplate.ContainerSpec.Image)
 
 	_, err = dockerCli.ServiceCreate(context.Background(), service, serviceOptions)
-	log.ChkErr(err)
+	libDatabox.ChkErr(err)
 
 }
 
@@ -291,7 +290,7 @@ func pullImage(image string) {
 
 	if len(images) == 0 {
 		reader, err := dockerCli.ImagePull(context.Background(), image, types.ImagePullOptions{})
-		log.ChkErr(err)
+		libDatabox.ChkErr(err)
 		io.Copy(ioutil.Discard, reader)
 		reader.Close()
 	}
@@ -304,11 +303,11 @@ func removeContainer(name string) {
 		Filters: filters,
 		All:     true,
 	})
-	log.ChkErr(clerr)
+	libDatabox.ChkErr(clerr)
 
 	if len(containers) > 0 {
 		rerr := dockerCli.ContainerRemove(context.Background(), containers[0].ID, types.ContainerRemoveOptions{Force: true})
-		log.ChkErr(rerr)
+		libDatabox.ChkErr(rerr)
 	}
 }
 
@@ -317,10 +316,10 @@ func getExternalIP() string {
 		Timeout: time.Second * 3,
 	}
 	response, err := netClient.Get("http://whatismyip.akamai.com/")
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 	ip, err := ioutil.ReadAll(response.Body)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 	response.Body.Close()
-	log.Debug("External IP found " + string(ip))
+	libDatabox.Debug("External IP found " + string(ip))
 	return string(ip)
 }

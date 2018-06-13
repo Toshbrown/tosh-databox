@@ -7,21 +7,20 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
-
-	log "databoxlog"
+	libDatabox "github.com/toshbrown/lib-go-databox"
 )
 
 func ShowLogs() {
 
 	cli, _ := client.NewEnvClient()
 
-	log.Info("Outputting logs")
+	libDatabox.Info("Outputting logs")
 
 	//filters := filters.NewArgs()
 	//filters.Add("label", "databox.type")
 	//services, err := d.cli.ServiceList(context.Background(), types.ServiceListOptions{Filters: filters})
 	services, err := cli.ServiceList(context.Background(), types.ServiceListOptions{})
-	log.ChkErr(err)
+	libDatabox.ChkErr(err)
 
 	logChan := make(chan string)
 	var wg sync.WaitGroup
@@ -38,7 +37,7 @@ func ShowLogs() {
 		)
 
 		if err != nil {
-			log.Err("Error reading logs for " + service.Spec.Name)
+			libDatabox.Err("Error reading logs for " + service.Spec.Name)
 			continue
 		}
 		wg.Add(1)

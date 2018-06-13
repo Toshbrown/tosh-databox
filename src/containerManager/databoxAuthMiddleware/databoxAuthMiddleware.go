@@ -3,12 +3,13 @@ package databoxAuthMiddleware
 import (
 	"containerManager/databoxProxyMiddleware"
 	"crypto/rand"
-	log "databoxlog"
 	b64 "encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
 	"sync"
+
+	libDatabox "github.com/toshbrown/lib-go-databox"
 )
 
 var allowedStaticPaths = map[string]string{"css": "", "js": "", "icons": "", "img": "", "": "", "cordova.js": ""}
@@ -34,13 +35,13 @@ func (d *DataboxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 
 	auth := func(w http.ResponseWriter, r *http.Request) {
 
-		//log.Debug("AuthMiddleware path=" + r.URL.Path)
+		//libDatabox.Debug("AuthMiddleware path=" + r.URL.Path)
 
 		parts := strings.Split(r.URL.Path, "/")
 
 		if _, ok := allowedStaticPaths[parts[1]]; ok {
 			//its allowed no auth needed
-			//log.Debug("its allowed no auth needed")
+			//libDatabox.Debug("its allowed no auth needed")
 			next.ServeHTTP(w, r)
 			return
 		}
@@ -50,9 +51,9 @@ func (d *DataboxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 		//handle connect request
 		if len(parts) >= 3 && parts[2] == "connect" {
 			//check password and issue session token if its OK
-			log.Debug("Connect called checking password")
+			libDatabox.Debug("Connect called checking password")
 			if ("Token " + d.password) == r.Header.Get("Authorization") {
-				log.Debug("Password OK!")
+				libDatabox.Debug("Password OK!")
 				if d.session == "" {
 					//make a new session token
 					b := make([]byte, 24)
@@ -71,7 +72,7 @@ func (d *DataboxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 				return
 			}
 
-			log.Err("Password validation error!")
+			libDatabox.Err("Password validation error!")
 			w.WriteHeader(http.StatusUnauthorized)
 			fmt.Fprintf(w, "Authorization Required")
 			return
@@ -81,14 +82,14 @@ func (d *DataboxAuthMiddleware) AuthMiddleware(next http.Handler) http.Handler {
 		// we must have a valid session cookie
 		sessionCookie, _ := r.Cookie("session")
 		if sessionCookie != nil && d.session == sessionCookie.Value {
-			//log.Debug("Session cookie OK")
+			//libDatabox.Debug("Session cookie OK")
 			//session cookie is ok continue to the next Middleware
 			next.ServeHTTP(w, r)
 			return
 		}
 
 		//if we get here were unauthorised
-		log.Warn("Authorization failed")
+		libDatabox.Warn("Authorization failed")
 		w.WriteHeader(http.StatusUnauthorized)
 		fmt.Fprintf(w, "Authorization Required")
 		return

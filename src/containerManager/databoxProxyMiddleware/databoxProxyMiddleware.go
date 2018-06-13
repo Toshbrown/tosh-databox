@@ -1,12 +1,12 @@
 package databoxProxyMiddleware
 
 import (
-	log "databoxlog"
 	"io"
-	"lib-go-databox/databoxRequest"
 	"net/http"
 	"strings"
 	"sync"
+
+	libDatabox "github.com/toshbrown/lib-go-databox"
 )
 
 type DataboxProxyMiddleware struct {
@@ -20,7 +20,7 @@ func New(rootCertPath string) *DataboxProxyMiddleware {
 
 	var h *http.Client
 	if rootCertPath != "" {
-		h = databoxRequest.NewDataboxHTTPsAPIWithPaths(rootCertPath)
+		h = libDatabox.NewDataboxHTTPsAPIWithPaths(rootCertPath)
 	}
 
 	d := &DataboxProxyMiddleware{
@@ -52,7 +52,7 @@ func (d *DataboxProxyMiddleware) ProxyMiddleware(next http.Handler) http.Handler
 			RequestURI = RequestURI + "?" + r.URL.RawQuery
 		}
 
-		log.Debug("Proxying internal request to  " + RequestURI)
+		libDatabox.Debug("Proxying internal request to  " + RequestURI)
 
 		req, err := http.NewRequest(r.Method, RequestURI, r.Body)
 		for name, value := range r.Header {

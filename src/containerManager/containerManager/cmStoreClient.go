@@ -1,22 +1,21 @@
 package containerManager
 
 import (
-	log "databoxlog"
 	"encoding/json"
-	"lib-go-databox/coreStoreClient"
-	databoxTypes "lib-go-databox/types"
+
+	libDatabox "github.com/toshbrown/lib-go-databox"
 )
 
 type CMStore struct {
-	Store *coreStoreClient.CoreStoreClient
+	Store *libDatabox.CoreStoreClient
 }
 
 const slaStoreID = "slaStore"
 
-func NewCMStore(store *coreStoreClient.CoreStoreClient) *CMStore {
+func NewCMStore(store *libDatabox.CoreStoreClient) *CMStore {
 
 	//setup SLAStore
-	store.RegisterDatasource(databoxTypes.DataSourceMetadata{
+	store.RegisterDatasource(libDatabox.DataSourceMetadata{
 		Description:    "Persistant SLA storage",
 		ContentType:    "json",
 		Vendor:         "databox",
@@ -31,7 +30,7 @@ func NewCMStore(store *coreStoreClient.CoreStoreClient) *CMStore {
 	return &CMStore{Store: store}
 }
 
-func (s CMStore) SaveSLA(sla databoxTypes.SLA) error {
+func (s CMStore) SaveSLA(sla libDatabox.SLA) error {
 
 	payload, err := json.Marshal(sla)
 	if err != nil {
@@ -42,9 +41,9 @@ func (s CMStore) SaveSLA(sla databoxTypes.SLA) error {
 
 }
 
-func (s CMStore) GetAllSLAs() ([]databoxTypes.SLA, error) {
+func (s CMStore) GetAllSLAs() ([]libDatabox.SLA, error) {
 
-	var slaList []databoxTypes.SLA
+	var slaList []libDatabox.SLA
 
 	keys, err := s.Store.KVJSONListKeys(slaStoreID)
 	if err != nil {
@@ -52,15 +51,15 @@ func (s CMStore) GetAllSLAs() ([]databoxTypes.SLA, error) {
 	}
 
 	for _, k := range keys {
-		var sla databoxTypes.SLA
+		var sla libDatabox.SLA
 		payload, err := s.Store.KVJSONRead(slaStoreID, k)
 		if err != nil {
-			log.Err("[GetAllSLAs] failed to get  " + slaStoreID + ". " + err.Error())
+			libDatabox.Err("[GetAllSLAs] failed to get  " + slaStoreID + ". " + err.Error())
 			continue
 		}
 		err = json.Unmarshal(payload, &sla)
 		if err != nil {
-			log.Err("[GetAllSLAs] failed decode SLA for " + slaStoreID + ". " + err.Error())
+			libDatabox.Err("[GetAllSLAs] failed decode SLA for " + slaStoreID + ". " + err.Error())
 			continue
 		}
 		slaList = append(slaList, sla)

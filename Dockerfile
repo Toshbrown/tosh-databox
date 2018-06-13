@@ -14,6 +14,8 @@ RUN go get -u github.com/pkg/errors
 RUN go get -u github.com/skip2/go-qrcode
 RUN go get -u github.com/docker/go-connections
 RUN rm -rf /go/src/github.com/docker/docker/vendor/github.com/docker/go-connections
+RUN go get -u github.com/toshbrown/lib-go-databox
+
 ENV GOPATH="/go:/go/src/github.com/toshbrown/tosh-databox/"
 RUN go env
 COPY . /go/src/github.com/toshbrown/tosh-databox/

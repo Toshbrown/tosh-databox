@@ -6,12 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"lib-go-databox/coreStoreClient"
-	databoxTypes "lib-go-databox/types"
-
 	"containerManager/databoxAuthMiddleware"
-
-	log "databoxlog"
 
 	"containerManager/databoxProxyMiddleware"
 
@@ -20,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/gorilla/mux"
 	qrcode "github.com/skip2/go-qrcode"
+	libDatabox "github.com/toshbrown/lib-go-databox"
 )
 
 var dboxproxy *databoxProxyMiddleware.DataboxProxyMiddleware
@@ -40,7 +36,7 @@ func ServeSecure(cm *ContainerManager, password string) {
 
 	dboxauth := databoxAuthMiddleware.New(password, dboxproxy)
 
-	log.Debug("Installing databox Middlewares")
+	libDatabox.Debug("Installing databox Middlewares")
 	r.Use(dboxauth.AuthMiddleware, dboxproxy.ProxyMiddleware)
 
 	r.HandleFunc("/api/cmlogs", func(w http.ResponseWriter, r *http.Request) {
@@ -66,7 +62,7 @@ func ServeSecure(cm *ContainerManager, password string) {
 
 		json, err := json.Marshal(data)
 		if err != nil {
-			log.Err("[/api/qrcode.png] Error parsing JSON " + err.Error())
+			libDatabox.Err("[/api/qrcode.png] Error parsing JSON " + err.Error())
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))
@@ -75,7 +71,7 @@ func ServeSecure(cm *ContainerManager, password string) {
 		var png []byte
 		png, err = qrcode.Encode(string(json), qrcode.Medium, 256)
 		if err != nil {
-			log.Err("[/api/qrcode.png] Error making  qrcode" + err.Error())
+			libDatabox.Err("[/api/qrcode.png] Error making  qrcode" + err.Error())
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))
@@ -89,36 +85,36 @@ func ServeSecure(cm *ContainerManager, password string) {
 	})
 
 	r.HandleFunc("/api/datasource/list", func(w http.ResponseWriter, r *http.Request) {
-		log.Debug("/api/datasource/list called")
+		libDatabox.Debug("/api/datasource/list called")
 		hyperCatRoot, err := ac.GetRootDataSourceCatalogue()
 		if err != nil {
-			log.Err("/api/datasource/list GetRootDataSourceCatalogue " + err.Error())
+			libDatabox.Err("/api/datasource/list GetRootDataSourceCatalogue " + err.Error())
 		}
 
 		//hcr, _ := json.Marshal(hyperCatRoot)
-		//log.Debug("/api/datasource/list hyperCatRoot=" + string(hcr))
-		var datasources []databoxTypes.HypercatItem
+		//libDatabox.Debug("/api/datasource/list hyperCatRoot=" + string(hcr))
+		var datasources []libDatabox.HypercatItem
 		for _, item := range hyperCatRoot.Items {
 			//get the store cat
-			storeURL, _ := coreStoreClient.GetStoreURLFromDsHref(item.Href)
-			sc := coreStoreClient.New(request, &ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
+			storeURL, _ := libDatabox.GetStoreURLFromDsHref(item.Href)
+			sc := libDatabox.NewCoreStoreClient(request, &ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
 			storeCat, err := sc.GetStoreDataSourceCatalogue(item.Href)
 			if err != nil {
-				log.Err("[/api/datasource/list] Error GetStoreDataSourceCatalogue " + err.Error())
+				libDatabox.Err("[/api/datasource/list] Error GetStoreDataSourceCatalogue " + err.Error())
 			}
 			//src, _ := json.Marshal(storeCat)
-			//log.Debug("/api/datasource/list got store cat: " + string(src))
+			//libDatabox.Debug("/api/datasource/list got store cat: " + string(src))
 			//build the datasource list
 			for _, ds := range storeCat.Items {
-				log.Debug("/api/datasource/list " + ds.Href)
+				libDatabox.Debug("/api/datasource/list " + ds.Href)
 				datasources = append(datasources, ds)
 			}
 		}
 		jsonString, err := json.Marshal(datasources)
 		if err != nil {
-			log.Err("[/api/datasource/list] Error " + err.Error())
+			libDatabox.Err("[/api/datasource/list] Error " + err.Error())
 		}
-		log.Debug("[/api/datasource/list] sending cat to client: " + string(jsonString))
+		libDatabox.Debug("[/api/datasource/list] sending cat to client: " + string(jsonString))
 		w.Write(jsonString)
 
 	}).Methods("GET")
@@ -129,10 +125,10 @@ func ServeSecure(cm *ContainerManager, password string) {
 
 		storeURL := "tcp://" + store + ":5555"
 		storeHref := "https://" + store + ":8080"
-		sc := coreStoreClient.New(request, &ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
+		sc := libDatabox.NewCoreStoreClient(request, &ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
 		storeCat, err := sc.GetStoreDataSourceCatalogue(storeHref)
 		if err != nil {
-			log.Err("[/api/store/cat/{store}] Error GetStoreDataSourceCatalogue " + err.Error())
+			libDatabox.Err("[/api/store/cat/{store}] Error GetStoreDataSourceCatalogue " + err.Error())
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))
@@ -160,7 +156,7 @@ func ServeSecure(cm *ContainerManager, password string) {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(res); err != nil {
-			log.Err("error encoding json " + err.Error())
+			libDatabox.Err("error encoding json " + err.Error())
 		}
 
 	}).Methods("GET")
@@ -224,7 +220,7 @@ func ServeSecure(cm *ContainerManager, password string) {
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(res); err != nil {
-			log.Err("[/api/{type}/list] error encoding json " + err.Error())
+			libDatabox.Err("[/api/{type}/list] error encoding json " + err.Error())
 		}
 
 	}).Methods("GET")
@@ -233,31 +229,31 @@ func ServeSecure(cm *ContainerManager, password string) {
 
 		defer r.Body.Close()
 		slaString, _ := ioutil.ReadAll(r.Body)
-		sla := databoxTypes.SLA{}
+		sla := libDatabox.SLA{}
 		err := json.Unmarshal(slaString, &sla)
 		if err != nil {
-			log.Err("[/api/install] Error invalid sla json " + err.Error() + "JSON=" + string(slaString))
+			libDatabox.Err("[/api/install] Error invalid sla json " + err.Error() + "JSON=" + string(slaString))
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":` + err.Error() + `}`))
 			return
 		}
 
-		log.Info("[/api/install] installing " + sla.Name)
+		libDatabox.Info("[/api/install] installing " + sla.Name)
 
 		//add to proxy
-		log.Debug("/api/install dboxproxy.Add " + sla.Name)
+		libDatabox.Debug("/api/install dboxproxy.Add " + sla.Name)
 		dboxproxy.Add(sla.Name)
 
 		//TODO check and return an error!!!
-		log.Debug("/api/install LaunchFromSLA")
+		libDatabox.Debug("/api/install LaunchFromSLA")
 		cm.LaunchFromSLA(sla)
 
 		w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{"status":200,"msg":"Success"}`))
 
-		log.Debug("/api/install finished")
+		libDatabox.Debug("/api/install finished")
 
 	}).Methods("POST")
 
@@ -272,22 +268,22 @@ func ServeSecure(cm *ContainerManager, password string) {
 		jsonBody := jsonStruct{}
 		err = json.Unmarshal(bodyString, &jsonBody)
 		if err != nil {
-			log.Err("[/api/restart] Malformed JSON " + err.Error())
+			libDatabox.Err("[/api/restart] Malformed JSON " + err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg": "Malformed JSON"}`))
 			return
 		}
 		if jsonBody.Name == "" {
-			log.Err("[/api/restart] Missing container name ")
+			libDatabox.Err("[/api/restart] Missing container name ")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":Missing container name"}`))
 			return
 		}
-		log.Info("[/api/restart] restarting - " + jsonBody.Name)
+		libDatabox.Info("[/api/restart] restarting - " + jsonBody.Name)
 
 		err = cm.Restart(jsonBody.Name)
 		if err != nil {
-			log.Err("[/api/restart] Restrat " + jsonBody.Name + " failed. " + err.Error())
+			libDatabox.Err("[/api/restart] Restrat " + jsonBody.Name + " failed. " + err.Error())
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":"` + err.Error() + `"}`))
 			return
@@ -307,33 +303,33 @@ func ServeSecure(cm *ContainerManager, password string) {
 		jsonBody := jsonStruct{}
 		err = json.Unmarshal(bodyString, &jsonBody)
 		if err != nil {
-			log.Err("[/api/restart] Malformed JSON " + err.Error())
+			libDatabox.Err("[/api/restart] Malformed JSON " + err.Error())
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":"Malformed JSON"}`))
 			return
 		}
 		if jsonBody.Name == "" {
-			log.Err("[/api/uninstall] Missing container name (id)")
+			libDatabox.Err("[/api/uninstall] Missing container name (id)")
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":Missing container name"}`))
 			return
 		}
-		log.Info("[/api/uninstall] uninstalling " + jsonBody.Name)
+		libDatabox.Info("[/api/uninstall] uninstalling " + jsonBody.Name)
 
 		dboxproxy.Del(jsonBody.Name)
 
 		err = cm.Uninstall(jsonBody.Name)
 		if err != nil {
-			log.Err("[/api/uninstall] Uninstall of " + jsonBody.Name + " failed. " + err.Error())
+			libDatabox.Err("[/api/uninstall] Uninstall of " + jsonBody.Name + " failed. " + err.Error())
 			w.Header().Set("Content-Type", "application/json; charset=UTF-8")
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(`{"status":400,"msg":"` + err.Error() + `"}`))
 			return
 		}
 
-		log.Debug("/api/uninstall finished")
+		libDatabox.Debug("/api/uninstall finished")
 
 		w.Write([]byte(`{"status":200,"msg":"Success"}`))
 
@@ -342,5 +338,5 @@ func ServeSecure(cm *ContainerManager, password string) {
 	static := http.FileServer(http.Dir("./www/https"))
 	r.PathPrefix("/").Handler(static)
 
-	log.ChkErrFatal(http.ListenAndServeTLS(":443", "./certs/container-manager.pem", "./certs/container-manager.pem", r))
+	libDatabox.ChkErrFatal(http.ListenAndServeTLS(":443", "./certs/container-manager.pem", "./certs/container-manager.pem", r))
 }

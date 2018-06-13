@@ -4,11 +4,11 @@ import (
 	certificateGenerator "containerManager/certificateGenerator"
 	containerManager "containerManager/containerManager"
 	databoxStart "containerManager/databoxStart"
-	log "databoxlog"
 	"encoding/json"
 	"io/ioutil"
-	databoxTypes "lib-go-databox/types"
 	"os"
+
+	libDatabox "github.com/toshbrown/lib-go-databox"
 )
 
 func main() {
@@ -18,21 +18,21 @@ func main() {
 
 	//get cm options from secret DATABOX_CM_OPTIONS
 	cmOptionsJSON, err := ioutil.ReadFile("/run/secrets/DATABOX_CM_OPTIONS")
-	log.ChkErrFatal(err)
-	var options databoxTypes.ContainerManagerOptions
+	libDatabox.ChkErrFatal(err)
+	var options libDatabox.ContainerManagerOptions
 	err = json.Unmarshal(cmOptionsJSON, &options)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	generateDataboxCertificates(options.InternalIP, options.ExternalIP)
 	generateArbiterTokens()
 
 	databox := databoxStart.New(&options)
 	rootCASecretID, zmqPublic, zmqPrivate := databox.Start()
-	log.Debug("key IDs :: " + rootCASecretID + " " + zmqPublic + " " + zmqPrivate)
+	libDatabox.Debug("key IDs :: " + rootCASecretID + " " + zmqPublic + " " + zmqPrivate)
 
 	cm := containerManager.New(rootCASecretID, zmqPublic, zmqPrivate, &options)
 	_, err = cm.WaitForContainer("arbiter", 10)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	//Start the databox cm Uis and do initial configuration
 	cm.Start()
@@ -75,7 +75,7 @@ func generateDataboxCertificates(IP string, externalIP string) {
 
 	//container-manager needs extra information
 	if _, err := os.Stat(certsBasePath + "/container-manager.pem"); err != nil {
-		log.Debug("[generateDataboxCertificates] making cert for container-manager")
+		libDatabox.Debug("[generateDataboxCertificates] making cert for container-manager")
 		certificateGenerator.GenCertToFile(
 			rootCAPath,
 			"container-manager",
@@ -96,8 +96,8 @@ func generateDataboxCertificates(IP string, externalIP string) {
 		if _, err := os.Stat(certsBasePath + "/" + name + ".pem"); err == nil {
 			continue
 		}
-		log.Debug("[generateDataboxCertificates] making cert for " + name)
-		log.Info("Making cert " + certsBasePath + "/" + name + ".pem")
+		libDatabox.Debug("[generateDataboxCertificates] making cert for " + name)
+		libDatabox.Info("Making cert " + certsBasePath + "/" + name + ".pem")
 		certificateGenerator.GenCertToFile(
 			rootCAPath,
 			name,

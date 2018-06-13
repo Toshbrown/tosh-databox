@@ -2,14 +2,13 @@ package containerManager
 
 import (
 	"context"
-	log "databoxlog"
 	"errors"
 	"io"
 	"io/ioutil"
 	"os"
 	"time"
 
-	databoxTypes "lib-go-databox/types"
+	libDatabox "github.com/toshbrown/lib-go-databox"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -34,10 +33,10 @@ type Databox struct {
 	DATABOX_PEM                   string
 	DATABOX_NETWORK_KEY           string
 	DATABOX_DNS_IP                string
-	Options                       *databoxTypes.ContainerManagerOptions
+	Options                       *libDatabox.ContainerManagerOptions
 }
 
-func New(opt *databoxTypes.ContainerManagerOptions) Databox {
+func New(opt *libDatabox.ContainerManagerOptions) Databox {
 	cli, _ := client.NewEnvClient()
 	return Databox{
 		cli:     cli,
@@ -47,12 +46,12 @@ func New(opt *databoxTypes.ContainerManagerOptions) Databox {
 
 func (d *Databox) Start() (string, string, string) {
 
-	log.Info("ContainerManager Started")
+	libDatabox.Info("ContainerManager Started")
 	//start the core containers
 	d.startCoreNetwork()
 
 	//Create global secrets that are used in more than one container
-	log.Debug("Creating secrets")
+	libDatabox.Debug("Creating secrets")
 	d.DATABOX_ROOT_CA_ID = d.createSecretFromFile("DATABOX_ROOT_CA", "./certs/containerManagerPub.crt")
 	d.CM_KEY_ID = d.createSecretFromFile("CM_KEY", "./certs/arbiterToken-container-manager")
 
@@ -64,7 +63,7 @@ func (d *Databox) Start() (string, string, string) {
 
 	//make ZMQ secrests
 	public, private, zmqErr := zmq.NewCurveKeypair()
-	log.ChkErrFatal(zmqErr)
+	libDatabox.ChkErrFatal(zmqErr)
 	d.ZMQ_PUBLIC_KEY_ID = d.createSecret("ZMQ_PUBLIC_KEY", public)
 	d.ZMQ_SECRET_KEY_ID = d.createSecret("ZMQ_SECRET_KEY", private)
 
@@ -93,7 +92,7 @@ func (d *Databox) getDNSIP() (string, error) {
 		return containerJSON.NetworkSettings.Networks["databox-system-net"].IPAddress, nil
 	}
 
-	log.Err("getDNSIP ip not found")
+	libDatabox.Err("getDNSIP ip not found")
 	return "", errors.New("databox-network not found")
 }
 
@@ -108,13 +107,13 @@ func (d *Databox) startCoreNetwork() {
 
 	//after CM update we do not need to do this again!!
 	if len(contList) > 0 {
-		log.Debug("databox-network already running")
+		libDatabox.Debug("databox-network already running")
 		//store the databox-network IP to pass as dns server
 		d.DATABOX_DNS_IP, _ = d.getDNSIP()
 		return
 	}
 
-	log.Info("Starting databox-network")
+	libDatabox.Info("Starting databox-network")
 
 	options := types.NetworkCreate{
 		Driver:     "overlay",
@@ -123,7 +122,7 @@ func (d *Databox) startCoreNetwork() {
 	}
 
 	_, err := d.cli.NetworkCreate(context.Background(), "databox-system-net", options)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	config := &container.Config{
 		Image:  d.Options.CoreNetworkImage + ":" + d.Options.Version,
@@ -157,7 +156,7 @@ func (d *Databox) startCoreNetwork() {
 	d.pullImage(config.Image)
 
 	containerCreateCreatedBody, ccErr := d.cli.ContainerCreate(context.Background(), config, hostConfig, networkingConfig, containerName)
-	log.ChkErrFatal(ccErr)
+	libDatabox.ChkErrFatal(ccErr)
 
 	d.cli.ContainerStart(context.Background(), containerCreateCreatedBody.ID, types.ContainerStartOptions{})
 	d.DATABOX_DNS_IP, _ = d.getDNSIP()
@@ -190,18 +189,18 @@ func (d *Databox) startCoreNetworkRelay() {
 	d.pullImage(config.Image)
 
 	containerCreateCreatedBody, ccErr := d.cli.ContainerCreate(context.Background(), config, hostConfig, &network.NetworkingConfig{}, containerName)
-	log.ChkErrFatal(ccErr)
+	libDatabox.ChkErrFatal(ccErr)
 
 	d.cli.ContainerStart(context.Background(), containerCreateCreatedBody.ID, types.ContainerStartOptions{})
 }
 
 func (d *Databox) pullImage(image string) {
 
-	log.Info("Pulling Image " + image)
+	libDatabox.Info("Pulling Image " + image)
 	reader, err := d.cli.ImagePull(context.Background(), d.Options.DefaultRegistryHost+"/"+image, types.ImagePullOptions{})
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 	io.Copy(ioutil.Discard, reader)
-	log.Info("Done pulling Image " + image)
+	libDatabox.Info("Done pulling Image " + image)
 	reader.Close()
 }
 
@@ -220,7 +219,7 @@ func (d *Databox) updateContainerManager() {
 
 	if swarmService[0].Spec.TaskTemplate.ContainerSpec.DNSConfig != nil {
 		//we have already updated the service!!!
-		log.Debug("container-manager service is up to date")
+		libDatabox.Debug("container-manager service is up to date")
 
 		f, _ := os.OpenFile("/ect/resolv.conf", os.O_APPEND|os.O_WRONLY, os.ModeAppend)
 		defer f.Close()
@@ -229,7 +228,7 @@ func (d *Databox) updateContainerManager() {
 		return
 	}
 
-	log.Debug("Updating container-manager Service " + d.DATABOX_DNS_IP)
+	libDatabox.Debug("Updating container-manager Service " + d.DATABOX_DNS_IP)
 
 	swarmService[0].Spec.TaskTemplate.ContainerSpec.DNSConfig = &swarm.DNSConfig{
 		Nameservers: []string{d.DATABOX_DNS_IP},
@@ -275,10 +274,10 @@ func (d *Databox) updateContainerManager() {
 		swarmService[0].Spec,
 		types.ServiceUpdateOptions{},
 	)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	//waiting to be rebooted
-	log.Info("Restarting the Container Manager")
+	libDatabox.Info("Restarting the Container Manager")
 	time.Sleep(time.Second * 100)
 
 }
@@ -317,7 +316,7 @@ func (d *Databox) startAppServer() {
 	d.pullImage(config.Image)
 
 	containerCreateCreatedBody, ccErr := d.cli.ContainerCreate(context.Background(), config, hostConfig, networkingConfig, containerName)
-	log.ChkErrFatal(ccErr)
+	libDatabox.ChkErrFatal(ccErr)
 
 	d.cli.ContainerStart(context.Background(), containerCreateCreatedBody.ID, types.ContainerStartOptions{})
 }
@@ -379,7 +378,7 @@ func (d *Databox) startExportService() {
 	d.pullImage(service.TaskTemplate.ContainerSpec.Image)
 
 	_, err := d.cli.ServiceCreate(context.Background(), service, serviceOptions)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 }
 
@@ -448,7 +447,7 @@ func (d *Databox) startArbiter() {
 	d.pullImage(service.TaskTemplate.ContainerSpec.Image)
 
 	_, err := d.cli.ServiceCreate(context.Background(), service, serviceOptions)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 }
 
@@ -468,9 +467,9 @@ func (d *Databox) createSecret(name, data string) string {
 		},
 		Data: []byte(data),
 	}
-	log.Debug("createSecret for " + name)
+	libDatabox.Debug("createSecret for " + name)
 	secretCreateResponse, err := d.cli.SecretCreate(context.Background(), secret)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	return secretCreateResponse.ID
 }
@@ -489,10 +488,10 @@ func (d *Databox) removeContainer(name string) {
 		Filters: filters,
 		All:     true,
 	})
-	log.ChkErrFatal(clerr)
+	libDatabox.ChkErrFatal(clerr)
 
 	if len(containers) > 0 {
 		rerr := d.cli.ContainerRemove(context.Background(), containers[0].ID, types.ContainerRemoveOptions{Force: true})
-		log.ChkErrFatal(rerr)
+		libDatabox.ChkErrFatal(rerr)
 	}
 }

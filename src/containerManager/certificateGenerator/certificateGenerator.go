@@ -6,7 +6,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	log "databoxlog"
+	libDatabox "github.com/toshbrown/lib-go-databox"
 	b64 "encoding/base64"
 	"encoding/pem"
 	"io/ioutil"
@@ -18,28 +18,28 @@ import (
 
 func GenCert(CAFilePath string, commonName string, ips []string, hostNames []string) []byte {
 
-	log.Debug("[GenCert] " + commonName)
+	libDatabox.Debug("[GenCert] " + commonName)
 
 	rootCertPem, err := ioutil.ReadFile(CAFilePath)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	rootCertBytes, rest := pem.Decode(rootCertPem)
 
 	rootCert, err := x509.ParseCertificate(rootCertBytes.Bytes)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	rootPrivateKeyBytes, _ := pem.Decode(rest)
 	rootPrivateKey, err := x509.ParsePKCS1PrivateKey(rootPrivateKeyBytes.Bytes)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	notBefore := time.Now()
 	notAfter := notBefore.Add(365 * 24 * time.Hour)
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, snErr := rand.Int(rand.Reader, serialNumberLimit)
-	log.ChkErrFatal(snErr)
+	libDatabox.ChkErrFatal(snErr)
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
@@ -67,7 +67,7 @@ func GenCert(CAFilePath string, commonName string, ips []string, hostNames []str
 	template.IsCA = false
 
 	derBytes, derErr := x509.CreateCertificate(rand.Reader, &template, rootCert, &priv.PublicKey, rootPrivateKey)
-	log.ChkErrFatal(derErr)
+	libDatabox.ChkErrFatal(derErr)
 
 	cert := new(bytes.Buffer)
 	pem.Encode(cert, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
@@ -76,7 +76,7 @@ func GenCert(CAFilePath string, commonName string, ips []string, hostNames []str
 	pem.Encode(cert, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: b})
 
 	asn1Bytes, pubErr := x509.MarshalPKIXPublicKey(&priv.PublicKey)
-	log.ChkErrFatal(pubErr)
+	libDatabox.ChkErrFatal(pubErr)
 
 	pem.Encode(cert, &pem.Block{Type: "PUBLIC KEY", Bytes: asn1Bytes})
 
@@ -88,25 +88,25 @@ func GenCertToFile(CAFilePath string, commonName string, ips []string, hostNames
 	cert := GenCert(CAFilePath, commonName, ips, hostNames)
 
 	certOut, err := os.Create(outputFilePath)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	_, err = certOut.Write(cert)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	certOut.Close()
 
 }
 
 func GenRootCA(CAFilePathPriv string, CAFilePathPub string) {
-	log.Info("GenRootCA called")
+	libDatabox.Info("GenRootCA called")
 	priv, err := rsa.GenerateKey(rand.Reader, 2048)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	notBefore := time.Now()
 	notAfter := notBefore.Add(365 * 24 * time.Hour)
 	serialNumberLimit := new(big.Int).Lsh(big.NewInt(1), 128)
 	serialNumber, snErr := rand.Int(rand.Reader, serialNumberLimit)
-	log.ChkErrFatal(snErr)
+	libDatabox.ChkErrFatal(snErr)
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
@@ -127,15 +127,15 @@ func GenRootCA(CAFilePathPriv string, CAFilePathPub string) {
 	template.KeyUsage |= x509.KeyUsageCertSign
 
 	derBytes, derErr := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
-	log.ChkErrFatal(derErr)
+	libDatabox.ChkErrFatal(derErr)
 
 	certOutPub, err := os.Create(CAFilePathPub)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 	pem.Encode(certOutPub, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	certOutPub.Close()
 
 	certOutPriv, err := os.Create(CAFilePathPriv)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 	pem.Encode(certOutPriv, &pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
 	b := x509.MarshalPKCS1PrivateKey(priv)
 	pem.Encode(certOutPriv, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: b})
@@ -148,7 +148,7 @@ func GenerateArbiterToken() []byte {
 	data := make([]byte, len)
 	_, err := rand.Read(data)
 	if err != nil {
-		log.Err(err.Error())
+		libDatabox.Err(err.Error())
 		return []byte{}
 	}
 
@@ -157,12 +157,12 @@ func GenerateArbiterToken() []byte {
 }
 
 func GenerateArbiterTokenToFile(outputFilePath string) {
-	log.Debug("GenerateArbiterTokenToFile" + outputFilePath)
+	libDatabox.Debug("GenerateArbiterTokenToFile" + outputFilePath)
 	out, err := os.Create(outputFilePath)
-	log.ChkErrFatal(err)
+	libDatabox.ChkErrFatal(err)
 
 	data := GenerateArbiterToken()
-	log.Debug("GenerateArbiterTokenToFile data=" + b64.StdEncoding.EncodeToString(data))
+	libDatabox.Debug("GenerateArbiterTokenToFile data=" + b64.StdEncoding.EncodeToString(data))
 
 	out.WriteString(b64.StdEncoding.EncodeToString(data))
 	out.Close()
