@@ -127,20 +127,20 @@ sleep 30 # long sleep to wait for images to be pulled if needed!
 test_app_os_monitor "first"
 
 #Can we restart driver-os-monitor
-#PAYLOAD='{"id":"driver-os-monitor"}'
-#RES=$(curl -s  --insecure --http1.1 --cookie ./databox-jar -H 'Content-Type: application/json' -X POST -d "${PAYLOAD}" -L 'https://127.0.0.1/api/restart')
-#EXPECTED='{"status":200,"msg":"Success"}'
-#test_assert "$RES" "$EXPECTED" "Can we restart driver-os-monitor?"
+PAYLOAD='{"id":"driver-os-monitor"}'
+RES=$(curl -s  --insecure --http1.1 --cookie ./databox-jar -H 'Content-Type: application/json' -X POST -d "${PAYLOAD}" -L 'https://127.0.0.1/api/restart')
+EXPECTED='{"status":200,"msg":"Success"}'
+test_assert "$RES" "$EXPECTED" "Can we restart driver-os-monitor?"
 
 #Can we restart app-os-monitor
-#PAYLOAD='{"id":"app-os-monitor"}'
-#RES=$(curl -s  --insecure --http1.1 --cookie ./databox-jar -H 'Content-Type: application/json' -X POST -d "${PAYLOAD}" -L 'https://127.0.0.1/api/restart')
-#EXPECTED='{"status":200,"msg":"Success"}'
-#test_assert "$RES" "$EXPECTED" "Can we restart app-os-monitor?"
+PAYLOAD='{"id":"app-os-monitor"}'
+RES=$(curl -s  --insecure --http1.1 --cookie ./databox-jar -H 'Content-Type: application/json' -X POST -d "${PAYLOAD}" -L 'https://127.0.0.1/api/restart')
+EXPECTED='{"status":200,"msg":"Success"}'
+test_assert "$RES" "$EXPECTED" "Can we restart app-os-monitor?"
 
 #second test of the app
-#sleep 10
-#test_app_os_monitor "second"
+sleep 15
+test_app_os_monitor "second"
 
 
 #Can we uninstall  driver-os-monitor
