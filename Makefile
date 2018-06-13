@@ -7,11 +7,11 @@ all: build
 deps:
 	go get -u github.com/pebbe/zmq4
 	go get -u github.com/me-box/goZestClient
-	go get golang.org/x/net/proxy
-	go get github.com/docker/go-connections
-	go get github.com/pkg/errors
-	go get github.com/docker/docker/api/types
-	go get github.com/docker/docker/client
+	go get -u golang.org/x/net/proxy
+	go get -u github.com/docker/go-connections/nat
+	go get -u github.com/pkg/errors
+	go get -u github.com/docker/docker/api/types
+	go get -u github.com/docker/docker/client
 
 .PHONY: build
 build:
