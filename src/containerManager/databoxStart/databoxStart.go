@@ -4,6 +4,7 @@ import (
 	"context"
 	log "databoxlog"
 	"errors"
+	"io"
 	"io/ioutil"
 	"os"
 	"time"
@@ -199,6 +200,7 @@ func (d *Databox) pullImage(image string) {
 	log.Info("Pulling Image " + image)
 	reader, err := d.cli.ImagePull(context.Background(), d.Options.DefaultRegistryHost+"/"+image, types.ImagePullOptions{})
 	log.ChkErrFatal(err)
+	io.Copy(ioutil.Discard, reader)
 	log.Info("Done pulling Image " + image)
 	reader.Close()
 }

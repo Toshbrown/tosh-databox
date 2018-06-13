@@ -5,6 +5,8 @@ import (
 	b64 "encoding/base64"
 	"encoding/json"
 	"errors"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -202,6 +204,7 @@ func (cm *ContainerManager) pullImage(image string) {
 	log.Info("Pulling Image " + image)
 	reader, err := cm.cli.ImagePull(context.Background(), cm.Options.DefaultRegistryHost+"/"+image, types.ImagePullOptions{})
 	log.ChkErrFatal(err)
+	io.Copy(ioutil.Discard, reader)
 	log.Info("Done pulling Image " + image)
 	reader.Close()
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -289,8 +290,10 @@ func pullImage(image string) {
 	images, _ := dockerCli.ImageList(context.Background(), types.ImageListOptions{Filters: filters})
 
 	if len(images) == 0 {
-		_, err := dockerCli.ImagePull(context.Background(), image, types.ImagePullOptions{})
+		reader, err := dockerCli.ImagePull(context.Background(), image, types.ImagePullOptions{})
 		log.ChkErr(err)
+		io.Copy(ioutil.Discard, reader)
+		reader.Close()
 	}
 }
 

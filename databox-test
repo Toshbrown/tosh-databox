@@ -167,10 +167,10 @@ test_app_os_monitor "third"
 #
 # TEST app and driver persistence
 #
-echo "Stopping data box"
+echo "Stopping databox"
 make stop
 
-echo "Restarting data box"
+echo "Restarting databox"
 $DATABOX_COMMAND
 sleep 80
 
