@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"time"
 
 	libDatabox "github.com/toshbrown/lib-go-databox"
@@ -195,13 +196,34 @@ func (d *Databox) startCoreNetworkRelay() {
 }
 
 func (d *Databox) pullImage(image string) {
+	needToPull := true
 
-	libDatabox.Info("Pulling Image " + image)
-	reader, err := d.cli.ImagePull(context.Background(), d.Options.DefaultRegistryHost+"/"+image, types.ImagePullOptions{})
-	libDatabox.ChkErrFatal(err)
-	io.Copy(ioutil.Discard, reader)
-	libDatabox.Info("Done pulling Image " + image)
-	reader.Close()
+	//do we have the image on disk?
+	images, _ := d.cli.ImageList(context.Background(), types.ImageListOptions{})
+	for _, i := range images {
+		for _, tag := range i.RepoTags {
+			if image == tag {
+				//we have the image no need to pull it !!
+				needToPull = false
+				break
+			}
+		}
+	}
+
+	//is it from the default registry (databoxsystems or whatever we overroad with) and tagged with latest?
+	if strings.Contains(image, d.Options.DefaultRegistry) == true && strings.Contains(image, ":latest") == true {
+		//its in the default registry and has the :latest tag lets pull it to make sure we are up-to-date
+		needToPull = true
+	}
+
+	if needToPull == true {
+		libDatabox.Info("Pulling Image " + image)
+		reader, err := d.cli.ImagePull(context.Background(), d.Options.DefaultRegistryHost+"/"+image, types.ImagePullOptions{})
+		libDatabox.ChkErrFatal(err)
+		io.Copy(ioutil.Discard, reader)
+		libDatabox.Info("Done pulling Image " + image)
+		reader.Close()
+	}
 }
 
 func (d *Databox) updateContainerManager() {
