@@ -37,7 +37,7 @@ func (s CMStore) SaveSLA(sla libDatabox.SLA) error {
 		return err
 	}
 
-	return s.Store.KVJSONWrite(slaStoreID, sla.Name, payload)
+	return s.Store.KVJSON.Write(slaStoreID, sla.Name, payload)
 
 }
 
@@ -45,14 +45,14 @@ func (s CMStore) GetAllSLAs() ([]libDatabox.SLA, error) {
 
 	var slaList []libDatabox.SLA
 
-	keys, err := s.Store.KVJSONListKeys(slaStoreID)
+	keys, err := s.Store.KVJSON.ListKeys(slaStoreID)
 	if err != nil {
 		return nil, err
 	}
 
 	for _, k := range keys {
 		var sla libDatabox.SLA
-		payload, err := s.Store.KVJSONRead(slaStoreID, k)
+		payload, err := s.Store.KVJSON.Read(slaStoreID, k)
 		if err != nil {
 			libDatabox.Err("[GetAllSLAs] failed to get  " + slaStoreID + ". " + err.Error())
 			continue
@@ -70,18 +70,18 @@ func (s CMStore) GetAllSLAs() ([]libDatabox.SLA, error) {
 }
 
 func (s CMStore) DeleteSLA(name string) error {
-	return s.Store.KVJSONDelete(slaStoreID, name)
+	return s.Store.KVJSON.Delete(slaStoreID, name)
 }
 
 func (s CMStore) ClearSLADatabase() error {
-	return s.Store.KVJSONDeleteAll(slaStoreID)
+	return s.Store.KVJSON.DeleteAll(slaStoreID)
 }
 
 func (s CMStore) SavePassword(password string) error {
-	return s.Store.KVTextWrite(slaStoreID, "CMPassword", []byte(password))
+	return s.Store.KVText.Write(slaStoreID, "CMPassword", []byte(password))
 }
 
 func (s CMStore) LoadPassword() (string, error) {
-	password, err := s.Store.KVTextRead(slaStoreID, "CMPassword")
+	password, err := s.Store.KVText.Read(slaStoreID, "CMPassword")
 	return string(password), err
 }
