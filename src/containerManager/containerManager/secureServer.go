@@ -49,14 +49,18 @@ func ServeSecure(cm *ContainerManager, password string) {
 	r.HandleFunc("/api/qrcode.png", func(w http.ResponseWriter, r *http.Request) {
 
 		type qrData struct {
-			IP         string `json:"ip"`
-			IPExternal string `json:"ipExternal"`
-			Token      string `json:"token"`
+			IP         string   `json:"ip"`
+			IPs        []string `json:"ips"`
+			IPExternal string   `json:"ipExternal"`
+			Hostname   string   `json:hostname`
+			Token      string   `json:"token"`
 		}
 
 		data := qrData{
-			IP:         cm.Options.InternalIP,
+			IP:         cm.Options.InternalIPs[0],
+			IPs:        cm.Options.InternalIPs, //TODO tell kev about this
 			IPExternal: cm.Options.ExternalIP,
+			Hostname:   cm.Options.Hostname,
 			Token:      "Token=" + password,
 		}
 

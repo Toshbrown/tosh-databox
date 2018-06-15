@@ -23,7 +23,7 @@ func main() {
 	err = json.Unmarshal(cmOptionsJSON, &options)
 	libDatabox.ChkErrFatal(err)
 
-	generateDataboxCertificates(options.InternalIP, options.ExternalIP)
+	generateDataboxCertificates(options.InternalIPs, options.ExternalIP, options.Hostname)
 	generateArbiterTokens()
 
 	databox := databoxStart.New(&options)
@@ -64,7 +64,7 @@ func generateArbiterTokens() {
 	}
 }
 
-func generateDataboxCertificates(IP string, externalIP string) {
+func generateDataboxCertificates(IPs []string, externalIP string, hostname string) {
 
 	rootCAPath := certsBasePath + "/containerManager.crt"
 	rootCAPathPub := certsBasePath + "/containerManagerPub.crt"
@@ -79,8 +79,8 @@ func generateDataboxCertificates(IP string, externalIP string) {
 		certificateGenerator.GenCertToFile(
 			rootCAPath,
 			"container-manager",
-			[]string{IP, externalIP, "127.0.0.1"},
-			[]string{"container-manager", "localhost"},
+			append([]string{externalIP, "127.0.0.1"}, IPs...), //“…” is syntax for variadic arguments
+			[]string{"container-manager", "localhost", hostname},
 			certsBasePath+"/container-manager.pem",
 		)
 	}

@@ -2,17 +2,17 @@ package main
 
 import (
 	"context"
+	"databoxLogParser"
 	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"syscall"
 	"time"
-
-	"databoxLogParser"
 
 	"encoding/json"
 
@@ -36,7 +36,7 @@ func main() {
 	DOCKER_API_VERSION := flag.String("API", "1.37", "Docker API version ")
 
 	startCmd := flag.NewFlagSet("start", flag.ExitOnError)
-	startCmdIP := startCmd.String("swarm-ip", "127.0.0.1", "The IP on the host to use")
+	startCmdIP := startCmd.String("swarm-ip", "127.0.0.1", "The IP on the host to advertise the swarm.")
 	startCmdRelease := startCmd.String("release", "0.4.0", "Databox version to start, can uses tagged versions or latest")
 	startCmdRegistryHosts := startCmd.String("registryHost", "docker.io", "Override the default registry host, server where images are pulled form")
 	startCmdRegistry := startCmd.String("registry", "databoxsystems", "Override the default registry path, where images are pulled form")
@@ -79,6 +79,12 @@ func main() {
 	switch os.Args[1] {
 	case "start":
 		libDatabox.Info("Starting Databox " + *startCmdRelease)
+
+		//get some info in the network configuration
+		hostname, _ := os.Hostname()
+		ips, _ := net.LookupHost(hostname)
+		ipv4s := removeIPv6addresses(ips)
+
 		opts := &libDatabox.ContainerManagerOptions{
 			Version:               *startCmdRelease,
 			SwarmAdvertiseAddress: *startCmdIP,
@@ -97,7 +103,8 @@ func main() {
 			OverridePasword:       *startCmdPassword,
 			HostPath:              path,
 			ExternalIP:            getExternalIP(),
-			InternalIP:            *startCmdIP,
+			InternalIPs:           ipv4s,
+			Hostname:              hostname,
 		}
 
 		if *ReGenerateDataboxCertificates == true {
@@ -309,6 +316,17 @@ func removeContainer(name string) {
 		rerr := dockerCli.ContainerRemove(context.Background(), containers[0].ID, types.ContainerRemoveOptions{Force: true})
 		libDatabox.ChkErr(rerr)
 	}
+}
+
+func removeIPv6addresses(addresses []string) []string {
+	var filteredIPs []string
+	for _, ip := range addresses {
+		parsedIP := net.ParseIP(ip)
+		if parsedIP.To4() != nil {
+			filteredIPs = append(filteredIPs, ip)
+		}
+	}
+	return filteredIPs
 }
 
 func getExternalIP() string {

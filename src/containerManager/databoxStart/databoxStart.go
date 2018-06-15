@@ -171,7 +171,7 @@ func (d *Databox) startCoreNetworkRelay() {
 	config := &container.Config{
 		Image:  d.Options.CoreNetworkRelayImage + ":" + d.Options.Version,
 		Labels: map[string]string{"databox.type": "databox-network"},
-		Cmd:    []string{"-f", "/tmp/relay", "-h", d.Options.InternalIP},
+		Cmd:    []string{"-f", "/tmp/relay", "-h", d.Options.InternalIPs[0]}, //TODO can we pass all the IPs here? 
 	}
 
 	BCASTFIFOPath := "/tmp/databox_relay"
