@@ -101,7 +101,7 @@ func ServeSecure(cm *ContainerManager, password string) {
 		for _, item := range hyperCatRoot.Items {
 			//get the store cat
 			storeURL, _ := libDatabox.GetStoreURLFromDsHref(item.Href)
-			sc := libDatabox.NewCoreStoreClient(request, &ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
+			sc := libDatabox.NewCoreStoreClient(request, ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
 			storeCat, err := sc.GetStoreDataSourceCatalogue(item.Href)
 			if err != nil {
 				libDatabox.Err("[/api/datasource/list] Error GetStoreDataSourceCatalogue " + err.Error())
@@ -129,7 +129,7 @@ func ServeSecure(cm *ContainerManager, password string) {
 
 		storeURL := "tcp://" + store + ":5555"
 		storeHref := "https://" + store + ":8080"
-		sc := libDatabox.NewCoreStoreClient(request, &ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
+		sc := libDatabox.NewCoreStoreClient(request, ac, "/run/secrets/ZMQ_PUBLIC_KEY", storeURL, false)
 		storeCat, err := sc.GetStoreDataSourceCatalogue(storeHref)
 		if err != nil {
 			libDatabox.Err("[/api/store/cat/{store}] Error GetStoreDataSourceCatalogue " + err.Error())
