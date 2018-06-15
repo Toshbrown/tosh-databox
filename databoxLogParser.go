@@ -1,4 +1,4 @@
-package databoxLogParser
+package main
 
 import (
 	"context"

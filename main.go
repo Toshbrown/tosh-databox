@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"databoxLogParser"
 	"flag"
 	"fmt"
 	"io"
@@ -11,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -42,8 +42,7 @@ func main() {
 	startCmdRegistry := startCmd.String("registry", "databoxsystems", "Override the default registry path, where images are pulled form")
 	startCmdPassword := startCmd.String("password", "", "Override the password if you dont want an auto generated one. Mainly for testing")
 	appStore := startCmd.String("appstore", "https://store.iotdatabox.com", "Override the default appstore where manifests are loaded form")
-	//TODO sort out the cm image name
-	cmImage := startCmd.String("cm", "go-container-manager", "Override container-manager image")
+	cmImage := startCmd.String("cm", "databoxsystems/container-manager", "Override container-manager image")
 	arbiterImage := startCmd.String("arbiter", "databoxsystems/arbiter", "Override arbiter image")
 	coreNetworkImage := startCmd.String("core-network", "databoxsystems/core-network", "Override container-manager image")
 	coreNetworkRelay := startCmd.String("core-network-relay", "databoxsystems/core-network-relay", "Override core-network-relay image")
@@ -124,7 +123,7 @@ func main() {
 		Stop()
 	case "logs":
 		logsCmd.Parse(os.Args[2:])
-		databoxLogParser.ShowLogs()
+		ShowLogs()
 	default:
 		displayUsage()
 		os.Exit(2)
@@ -152,7 +151,6 @@ func Start(opt *libDatabox.ContainerManagerOptions) {
 	})
 	libDatabox.ChkErrFatal(err)
 
-	//TODO move databox_relay creation into the CM
 	os.Remove("/tmp/databox_relay")
 	err = syscall.Mkfifo("/tmp/databox_relay", 0666)
 	libDatabox.ChkErrFatal(err)
@@ -279,28 +277,44 @@ func createContainerManager(options *libDatabox.ContainerManagerOptions) {
 
 	serviceOptions := types.ServiceCreateOptions{}
 
-	//TODO DISABLED FOR NOW
-	//d.pullImage(service.TaskTemplate.ContainerSpec.Image)
+	pullImage(service.TaskTemplate.ContainerSpec.Image, options)
 
 	_, err = dockerCli.ServiceCreate(context.Background(), service, serviceOptions)
 	libDatabox.ChkErr(err)
 
 }
 
-func pullImage(image string) {
+func pullImage(image string, options *libDatabox.ContainerManagerOptions) {
 
-	//TODO deal with DefaultRegistryHost when this is enabled
-	filters := filters.NewArgs()
-	filters.Add("reference", image)
+	needToPull := true
 
-	images, _ := dockerCli.ImageList(context.Background(), types.ImageListOptions{Filters: filters})
+	//do we have the image on disk?
+	images, _ := dockerCli.ImageList(context.Background(), types.ImageListOptions{})
+	for _, i := range images {
+		for _, tag := range i.RepoTags {
+			if image == tag {
+				//we have the image no need to pull it !!
+				needToPull = false
+				break
+			}
+		}
+	}
 
-	if len(images) == 0 {
-		reader, err := dockerCli.ImagePull(context.Background(), image, types.ImagePullOptions{})
+	//is it from the default registry (databoxsystems or whatever we overroad with) and tagged with latest?
+	if strings.Contains(image, options.DefaultRegistry) == true && strings.Contains(image, ":latest") == true {
+		//its in the default registry and has the :latest tag lets pull it to make sure we are up-to-date
+		needToPull = true
+	}
+
+	if needToPull == true {
+		libDatabox.Info("Pulling Image " + image)
+		reader, err := dockerCli.ImagePull(context.Background(), options.DefaultRegistryHost+"/"+image, types.ImagePullOptions{})
 		libDatabox.ChkErr(err)
 		io.Copy(ioutil.Discard, reader)
+		libDatabox.Info("Done pulling Image " + image)
 		reader.Close()
 	}
+
 }
 
 func removeContainer(name string) {
