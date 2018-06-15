@@ -29,7 +29,7 @@ import (
 
 type ContainerManager struct {
 	cli                *client.Client
-	ArbiterClient      libDatabox.ArbiterClient
+	ArbiterClient      *libDatabox.ArbiterClient
 	CoreNetworkClient  libDatabox.CoreNetworkClient
 	CoreStoreClient    *libDatabox.CoreStoreClient
 	Request            *http.Client
@@ -80,7 +80,7 @@ func (cm ContainerManager) Start() {
 	cm.cmStoreURL = cm.launchCMStore()
 
 	//setup the cm to log to the store
-	cm.CoreStoreClient = libDatabox.NewCoreStoreClient(cm.Request, &cm.ArbiterClient, "/run/secrets/ZMQ_PUBLIC_KEY", cm.cmStoreURL, false)
+	cm.CoreStoreClient = libDatabox.NewCoreStoreClient(cm.Request, cm.ArbiterClient, "/run/secrets/ZMQ_PUBLIC_KEY", cm.cmStoreURL, false)
 	l, err := libDatabox.New(cm.CoreStoreClient, cm.Options.EnableDebugLogging)
 	if err != nil {
 		libDatabox.Err("Filed to set up logging to store. " + err.Error())
