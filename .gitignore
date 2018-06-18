@@ -21,3 +21,5 @@ databox-jar
 \.DS_Store
 
 app-os-monitor/
+
+sdk/

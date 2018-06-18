@@ -52,9 +52,12 @@ func main() {
 	clearSLAdb := startCmd.Bool("flushSLAs", false, "Removes any saved apps or drivers from the SLA database so they will not restart")
 	enableLogging := startCmd.Bool("v", false, "Enables verbose logging of the container-manager")
 	ReGenerateDataboxCertificates := startCmd.Bool("regenerateCerts", false, "Fore databox to regenerate the databox root and certificate")
-
 	stopCmd := flag.NewFlagSet("stop", flag.ExitOnError)
 	logsCmd := flag.NewFlagSet("logs", flag.ExitOnError)
+
+	sdkCmd := flag.NewFlagSet("sdk", flag.ExitOnError)
+	startSDK := sdkCmd.Bool("start", false, "Use this to start the databox sdk")
+	stopSDK := sdkCmd.Bool("stop", false, "Use this to stop the databox sdk")
 
 	flag.Parse()
 
@@ -73,10 +76,10 @@ func main() {
 		os.Exit(2)
 	}
 
-	startCmd.Parse(os.Args[2:])
-
 	switch os.Args[1] {
 	case "start":
+		startCmd.Parse(os.Args[2:])
+
 		libDatabox.Info("Starting Databox " + *startCmdRelease)
 
 		//get some info in the network configuration
@@ -124,6 +127,20 @@ func main() {
 	case "logs":
 		logsCmd.Parse(os.Args[2:])
 		ShowLogs()
+	case "sdk":
+		sdkCmd.Parse(os.Args[2:])
+
+		if *startSDK == true {
+			libDatabox.Info("Starting Databox SDK")
+			StartSDK()
+
+		} else if *stopSDK == true {
+			libDatabox.Info("Stoping Databox SDK")
+			StopSDK()
+		} else {
+			sdkCmd.Usage()
+		}
+
 	default:
 		displayUsage()
 		os.Exit(2)
@@ -138,6 +155,7 @@ func displayUsage() {
 			start - start databox
 			stop - stop databox
 			logs - view databox logs
+			sdk  - manage the databox sdk
 
 		Use databox [cmd] help to see more options
 		`)
@@ -189,6 +207,8 @@ func Stop() {
 		for _, container := range containers {
 			libDatabox.Info("Removing old databox container " + container.Image)
 			err := dockerCli.ContainerStop(context.Background(), container.ID, nil)
+			libDatabox.ChkErr(err)
+			err = dockerCli.ContainerRemove(context.Background(), containers[0].ID, types.ContainerRemoveOptions{Force: true})
 			libDatabox.ChkErr(err)
 		}
 	}
