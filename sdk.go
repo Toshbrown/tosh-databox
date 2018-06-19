@@ -83,6 +83,7 @@ func mockDatasource() {
 func databoxsdk() {
 
 	settingsPath, _ := filepath.Abs("./sdk")
+	certsPath, _ := filepath.Abs("./certs")
 
 	config := &container.Config{
 		Image:  "tlodge/databox-sdk",
@@ -102,6 +103,7 @@ func databoxsdk() {
 		Binds: []string{
 			"/var/run/docker.sock:/var/run/docker.sock:rw",
 			settingsPath + ":/usr/src/app/conf",
+			certsPath + "containerManagerPub.crt:/run/secrets/DATABOX_ROOT_CA:rw",
 		},
 	}
 
